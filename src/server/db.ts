@@ -8,7 +8,7 @@ export function getDb(): Database.Database {
   if (!db) {
     const dbPath =
       process.env.REVIEW_TOOL_DB_PATH ||
-      path.join(process.cwd(), ".harness", "review-tool.db");
+      path.join(process.cwd(), "specsync.db");
     db = Database(dbPath);
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
