@@ -1,0 +1,118 @@
+/* Typography */
+.markdown-body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: #1a1a2e;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.markdown-body h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 1rem; border-bottom: 1px solid #e0e0e0; padding-bottom: 0.5rem; }
+.markdown-body h2 { font-size: 1.5rem; font-weight: 600; margin: 1.5rem 0 0.75rem; }
+.markdown-body h3 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
+.markdown-body h4 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; }
+
+.markdown-body p { margin: 0.75rem 0; }
+.markdown-body ul, .markdown-body ol { margin: 0.75rem 0; padding-left: 1.5rem; }
+.markdown-body li { margin: 0.25rem 0; }
+.markdown-body blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #3b82f6;
+  background: #f8fafc;
+  color: #475569;
+}
+
+/* Code */
+.markdown-body code {
+  font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, monospace;
+  font-size: 0.875em;
+  background: #f1f5f9;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+.markdown-body pre {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #1e293b;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
+/* Tables */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9rem;
+}
+
+.markdown-body thead {
+  background: #f8fafc;
+}
+
+.markdown-body th {
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.markdown-body td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.markdown-body tbody tr:nth-child(even) {
+  background: #fafafa;
+}
+
+.markdown-body tbody tr:hover {
+  background: #f0f9ff;
+}
+
+/* Links */
+.markdown-body a {
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+/* Horizontal rule */
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 2rem 0;
+}
+
+/* Syntax Highlighting (GitHub-inspired dark) */
+.hljs { color: #e2e8f0; }
+.hljs-keyword { color: #f472b6; }
+.hljs-string { color: #86efac; }
+.hljs-number { color: #fbbf24; }
+.hljs-comment { color: #64748b; font-style: italic; }
+.hljs-function { color: #93c5fd; }
+.hljs-title { color: #93c5fd; }
+.hljs-params { color: #e2e8f0; }
+.hljs-built_in { color: #67e8f9; }
+.hljs-literal { color: #fbbf24; }
+.hljs-type { color: #a78bfa; }
+.hljs-attr { color: #67e8f9; }
+.hljs-selector-class { color: #86efac; }
+.hljs-selector-tag { color: #f472b6; }
+.hljs-template-variable { color: #fbbf24; }
+.hljs-variable { color: #e2e8f0; }
+.hljs-meta { color: #64748b; }
+.hljs-punctuation { color: #94a3b8; }

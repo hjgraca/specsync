@@ -1,0 +1,63 @@
+# Using Specsync with Pi
+
+## Prerequisites
+
+- Specsync server running (`npx specsync start` or Docker)
+- Pi coding agent installed (`npm install -g @earendil-works/pi-coding-agent`)
+
+## Install
+
+```bash
+npx specsync install --to pi
+```
+
+This creates `.pi/skills/specsync/SKILL.md` in your project.
+
+## Usage
+
+### Ask the team questions
+
+Tell Pi:
+
+> "Ask the team what approach we should take for caching"
+
+Pi will:
+1. Create a Q&A session with structured questions
+2. Print the URL for your team
+3. Poll until answers arrive
+4. Continue working with the answers
+
+### Submit a spec for review
+
+Tell Pi:
+
+> "Submit this plan for team review"
+
+Pi will:
+1. Publish the spec to specsync
+2. Print the review URL
+3. Wait for approval or change requests
+4. Continue or revise based on feedback
+
+## Configuration
+
+```bash
+export REVIEW_TOOL_URL=http://localhost:4000
+```
+
+## Using with Pi GitHub Action
+
+If you're using Pi in a GitHub Action, set `REVIEW_TOOL_URL` to your deployed specsync instance:
+
+```yaml
+env:
+  REVIEW_TOOL_URL: https://specsync.yourteam.com
+```
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| "Connection refused" | Start the server: `npx specsync start` |
+| Skill not triggering | Say "ask the team" or "submit for review" explicitly |
+| Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |
