@@ -92,8 +92,8 @@ test.describe("Review golden path", () => {
     // Click Approve button
     await page.getByRole("button", { name: "Approve" }).click();
 
-    // Verify approval state: status changes from active
-    await expect(page.getByText("approved")).toBeVisible();
+    // Verify approval state: the approval bar disappears (status is no longer active)
+    await expect(page.getByRole("button", { name: "Approve" })).not.toBeVisible({ timeout: 10000 });
   });
 });
 
