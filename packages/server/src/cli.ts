@@ -33,6 +33,16 @@ if (purged > 0) {
 const app = createApp();
 const server = createServer(app);
 
+server.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`\n  Error: port ${port} is already in use.`);
+    console.error(`  Either stop the other process or use a different port:\n`);
+    console.error(`    npx @specsync/server --port 4001\n`);
+    process.exit(1);
+  }
+  throw err;
+});
+
 server.listen(port, host, () => {
   console.log(`\n  Specsync`);
   console.log(`  Server running at http://${host}:${port}\n`);
