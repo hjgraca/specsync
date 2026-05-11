@@ -14,7 +14,7 @@ route them through the specsync web UI instead.
 
 The specsync server runs at: ${REVIEW_TOOL_URL:-http://localhost:4000} (or the value of REVIEW_TOOL_URL if set).
 
-If the server is not running, tell the user: "Please start the specsync server with: npx @specsync/cli start"
+If the server is not running, tell the user: "Please start the specsync server with: npx @specsync/server"
 
 ## When the user wants to ask the team questions
 

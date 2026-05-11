@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Specsync! This guide will help yo
 
 ## Development Setup
 
-**Prerequisites:** Node.js >= 20.0.0
+**Prerequisites:** Node.js >= 22.0.0, pnpm >= 10
 
 ```bash
 # Clone your fork
@@ -12,25 +12,25 @@ git clone https://github.com/<your-username>/specsync.git
 cd specsync
 
 # Install dependencies
-npm install
+pnpm install
 
 # Start the dev server (runs both the Express API and Vite frontend)
-npm run dev
+pnpm dev
 ```
 
-The dev server uses `concurrently` to run the backend (tsx watch) and frontend (Vite) together. The API starts on `http://localhost:3000` and the Vite dev server proxies to it.
+The dev server uses `concurrently` to run the backend (tsx watch) and frontend (Vite) together. The API starts on `http://localhost:4000` and the Vite dev server proxies to it.
 
 ## Running Tests
 
 ```bash
 # Unit tests (Vitest)
-npm test
-
-# Unit tests with coverage
-npm run test:coverage
+pnpm test
 
 # End-to-end tests (Playwright)
-npm run test:e2e
+npx playwright test
+
+# Build all packages
+pnpm build
 ```
 
 Make sure all tests pass before submitting a PR.
@@ -38,22 +38,11 @@ Make sure all tests pass before submitting a PR.
 ## Project Structure
 
 ```
-src/
-  server/       Express API, WebSocket handling, database, auth
-  client/       React frontend (Vite)
-  shared/       Types and utilities shared between server and client
-  cli.ts        CLI entry point (specsync start, install, create, attach-agent)
-  installer.ts  Agent skill installer
-skills/
-  universal/    Template skill — copy this to create a new agent skill
-  claude/       Claude Code skill
-  copilot/      GitHub Copilot skill
-  cursor/       Cursor skill
-  kiro/         Kiro skill
-  pi/           Pi skill
+packages/
+  server/       @specsync/server — Express API, WebSocket, database, React frontend
+  skill/        @specsync/skill — Interactive TUI installer + skill files per agent
+  sdk/          @specsync/sdk — TypeScript client, bridge, and tool functions
 tests/
-  server/       API and server unit tests
-  client/       Client unit tests
   e2e/          Playwright end-to-end tests
 ```
 
@@ -66,9 +55,9 @@ tests/
 
 ## Adding a New Agent Skill
 
-1. Copy the `skills/universal/` directory to `skills/<your-agent>/`.
+1. Copy `packages/skill/skills/universal/` to `packages/skill/skills/<your-agent>/`.
 2. Adapt `SKILL.md` for your agent's syntax and conventions.
-3. Test the skill by running `specsync install <your-agent>` against a local server.
+3. Add the agent target to the `TARGETS` array in `packages/skill/src/index.ts`.
 4. Add your agent to the skills list in the README if applicable.
 
 ## Pull Request Process
@@ -76,7 +65,7 @@ tests/
 1. **Fork** the repository and create a feature branch from `main`.
 2. **Branch naming:** Use descriptive names like `feat/my-feature`, `fix/issue-42`, `docs/update-readme`.
 3. **Write tests** for new functionality. Update existing tests if behavior changes.
-4. **Run all tests** (`npm test` and `npm run test:e2e`) and ensure they pass.
+4. **Run all tests** (`pnpm test`) and ensure they pass.
 5. **Open a PR** against `main` with a clear description of what and why.
 6. A maintainer will review your PR. Address any feedback, then it gets merged.
 

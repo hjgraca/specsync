@@ -15,7 +15,7 @@ When you need team input on questions or want a spec reviewed before proceeding,
 use the specsync server's HTTP API. The server runs at the URL in the
 `REVIEW_TOOL_URL` environment variable (default: `http://localhost:4000`).
 
-Start the server: `npx specsync start`
+Start the server: `npx @specsync/server`
 
 ## When to Use
 
@@ -107,5 +107,5 @@ curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/ops"
 - Use `ai:` prefix in `by` fields (e.g., `ai:agent-name`)
 - Never call `document.approve` — only humans approve
 - Poll every 3-5 seconds
-- If server unreachable, tell user to run: `npx specsync start`
+- If server unreachable, tell user to run: `npx @specsync/server`
 - Always include a `recommendation` field in questions

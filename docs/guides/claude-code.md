@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-- Specsync server running (`npx specsync start` or Docker)
+- Specsync server running (`npx @specsync/server` or Docker)
 - Claude Code installed
 
 ## Install
 
 ```bash
-npx specsync install --to claude
+npx @specsync/skill
 ```
 
 This creates `.claude/skills/specsync/SKILL.md` in your project.
@@ -75,7 +75,7 @@ The agent generates a random codename (e.g., `ai:claude-swift-falcon`) for prese
 
 | Issue | Solution |
 |-------|----------|
-| "Connection refused" | Start the server: `npx specsync start` |
+| "Connection refused" | Start the server: `npx @specsync/server` |
 | Skill not triggering | Say "ask the team" or "submit for review" explicitly |
 | Agent not polling | Check the skill is in `.claude/skills/specsync/SKILL.md` |
 | Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |

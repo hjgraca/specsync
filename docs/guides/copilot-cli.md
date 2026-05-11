@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-- Specsync server running (`npx specsync start` or Docker)
+- Specsync server running (`npx @specsync/server` or Docker)
 - GitHub Copilot CLI installed
 
 ## Install
 
 ```bash
-npx specsync install --to copilot
+npx @specsync/skill
 ```
 
 This creates `.agents/skills/specsync/SKILL.md` in your project. Copilot CLI uses the Agent Skills standard (`.agents/skills/`).
@@ -49,6 +49,6 @@ export REVIEW_TOOL_URL=http://localhost:4000
 
 | Issue | Solution |
 |-------|----------|
-| "Connection refused" | Start the server: `npx specsync start` |
+| "Connection refused" | Start the server: `npx @specsync/server` |
 | Skill not triggering | Say "ask the team" or "submit for review" explicitly |
 | Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |

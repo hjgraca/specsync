@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Specsync server running (`npx specsync start` or Docker)
+- Specsync server running (`npx @specsync/server` or Docker)
 - Any AI coding agent with shell/terminal access
 
 ## Install
@@ -11,10 +11,10 @@ Copy the universal skill file to your agent's skill directory:
 
 ```bash
 # Option 1: Use the installer with a generic target
-npx specsync install --to agents
+npx @specsync/skill
 
 # Option 2: Copy manually
-cp skills/universal/SKILL.md <your-agent-skill-directory>/specsync/SKILL.md
+cp packages/skill/skills/universal/SKILL.md <your-agent-skill-directory>/specsync/SKILL.md
 ```
 
 Common skill directories by agent:
@@ -96,6 +96,6 @@ export REVIEW_TOOL_URL=http://localhost:4000
 
 | Issue | Solution |
 |-------|----------|
-| "Connection refused" | Start the server: `npx specsync start` |
+| "Connection refused" | Start the server: `npx @specsync/server` |
 | 404 on endpoints | Check the server URL — no trailing slash |
 | Can't parse response | Responses are JSON. Use `jq` or your language's JSON parser |

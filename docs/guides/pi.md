@@ -2,13 +2,13 @@
 
 ## Prerequisites
 
-- Specsync server running (`npx specsync start` or Docker)
+- Specsync server running (`npx @specsync/server` or Docker)
 - Pi coding agent installed (`npm install -g @earendil-works/pi-coding-agent`)
 
 ## Install
 
 ```bash
-npx specsync install --to pi
+npx @specsync/skill
 ```
 
 This creates `.pi/skills/specsync/SKILL.md` in your project.
@@ -58,6 +58,6 @@ env:
 
 | Issue | Solution |
 |-------|----------|
-| "Connection refused" | Start the server: `npx specsync start` |
+| "Connection refused" | Start the server: `npx @specsync/server` |
 | Skill not triggering | Say "ask the team" or "submit for review" explicitly |
 | Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |
