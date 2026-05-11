@@ -16,7 +16,7 @@ COPY packages/server/ packages/server/
 
 RUN pnpm --filter @specsync/sdk build && pnpm --filter @specsync/server build
 
-RUN pnpm deploy --filter @specsync/server --prod /app/deploy
+RUN pnpm deploy --filter @specsync/server --prod --legacy /app/deploy
 
 FROM node:22-alpine
 
