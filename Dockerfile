@@ -7,6 +7,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY packages/sdk/package.json packages/sdk/
 COPY packages/server/package.json packages/server/
+COPY packages/skill/package.json packages/skill/
 
 RUN pnpm install --frozen-lockfile
 
@@ -15,18 +16,16 @@ COPY packages/server/ packages/server/
 
 RUN pnpm --filter @specsync/sdk build && pnpm --filter @specsync/server build
 
+RUN pnpm deploy --filter @specsync/server --prod /app/deploy
+
 FROM node:22-alpine
 
 RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
 
+COPY --from=builder /app/deploy/node_modules/ node_modules/
 COPY --from=builder /app/packages/server/dist/ dist/
-COPY --from=builder /app/packages/server/package.json .
-
-RUN corepack enable && corepack prepare pnpm@10.11.0 --activate && \
-    pnpm install --prod --ignore-scripts && \
-    pnpm rebuild better-sqlite3
 
 ENV PORT=4000
 ENV HOST=0.0.0.0

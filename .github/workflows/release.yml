@@ -55,18 +55,12 @@ jobs:
 
       - name: Publish @specsync/sdk
         run: pnpm --filter @specsync/sdk publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @specsync/server
         run: pnpm --filter @specsync/server publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @specsync/skill
         run: pnpm --filter @specsync/skill publish --provenance --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-docker:
     name: Push Docker image
