@@ -5,7 +5,8 @@
 
 Collaborative spec review for AI coding agents. Your agent asks questions and submits specs — your team answers and reviews in the browser.
 
-![Spec Review UI](screenshots/review-ui.png)
+<img width="1354" height="623" alt="image" src="https://github.com/user-attachments/assets/7dac37f8-4842-43b2-8294-d7982e61daae" />
+
 
 ## What it does
 
