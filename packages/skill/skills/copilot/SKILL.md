@@ -1,13 +1,22 @@
 ---
 name: specsync
 description: >
-  Collaborative spec review and team Q&A. Use this skill whenever the user wants to
-  get team input, ask the team questions, submit a spec for review, get approval, or
-  do collaborative review. Also use when there are multi-stage or dependent questions
-  where later decisions depend on earlier answers. Routes all questions and specs to a
-  shared web UI — never ask decision questions in the chat. Trigger on phrases like
-  "ask the team", "get team input", "what does the team think", "submit for review",
-  "get approval", "multi-stage questions", or "dependent questions".
+  Collaborative spec review and team Q&A. Routes all questions and specs to a shared
+  web UI — never ask decision questions in the chat.
+
+  TRIGGER THIS SKILL when:
+  - The user wants team input, questions answered, spec review, or approval
+  - The user asks the agent to interview them, ask them questions, or walk through decisions
+  - The task requires the agent to ask the user design/architecture/implementation questions
+  - There are multi-stage or dependent questions where later decisions depend on earlier answers
+  - The user says "interview me", "ask me about", "walk me through decisions", "resolve
+    dependencies one by one", "question by question", "one at a time"
+  - Phrases like "ask the team", "get team input", "what does the team think", "submit
+    for review", "get approval", "multi-stage questions", or "dependent questions"
+
+  CRITICAL RULE: Any time the agent would otherwise ask decision questions, design
+  questions, or gather preferences in plain text — use this skill instead. This includes
+  when the user asks to be interviewed, quizzed, or walked through choices.
 allowed-tools:
   - shell
 ---
@@ -72,20 +81,13 @@ After creating the session:
 
 ```bash
 while true; do
-  session=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}?token={token}")
-  answer_count=$(printf '%s' "$session" | node -e '
-let s = "";
-process.stdin.on("data", d => s += d).on("end", () => {
-  const j = JSON.parse(s);
-  const answers = j.answers || {};
-  process.stdout.write(String(Object.keys(answers).length));
-});
-')
-  if [ "$answer_count" -gt 0 ]; then
-    printf '%s\n' "$session"
+  RESP=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}?token={token}")
+  STATUS=$(echo "$RESP" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+  if [ "$STATUS" = "completed" ]; then
+    echo "$RESP"
     break
   fi
-  sleep 2
+  sleep 3
 done
 ```
 
@@ -145,28 +147,17 @@ After creating:
 
 ```bash
 while true; do
-  events=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/events/pending?since=0" \
+  RESP=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/events/pending?since=0" \
     -H "x-share-token: {accessToken}")
-  decision=$(printf '%s' "$events" | node -e '
-let s = "";
-process.stdin.on("data", d => s += d).on("end", () => {
-  const items = JSON.parse(s);
-  const hit = items.find(event =>
-    event.type === "document.approved" ||
-    event.type === "document.changes_requested"
-  );
-  process.stdout.write(hit ? hit.type : "");
-});
-')
-  if [ -n "$decision" ]; then
-    printf '%s\n' "$events"
+  if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
+    echo "$RESP"
     break
   fi
-  sleep 5
+  sleep 3
 done
 ```
 
-4. Continue once a decision event is present in the polled response.
+4. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
 
 - If approved: continue with implementation
 - If changes requested: read the comments, revise the spec, and update:
