@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isAllowedCallbackUrl } from "../../src/server/url-validator.js";
+import { isAllowedCallbackUrl } from "../src/server/url-validator.js";
 
 // ---------------------------------------------------------------------------
 // Blocked: private / internal IP addresses

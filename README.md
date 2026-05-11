@@ -1,7 +1,7 @@
 # Specsync
 
 [![Tests](https://github.com/hjgraca/specsync/actions/workflows/test.yml/badge.svg)](https://github.com/hjgraca/specsync/actions/workflows/test.yml)
-[![Docker](https://github.com/hjgraca/specsync/actions/workflows/docker.yml/badge.svg)](https://github.com/hjgraca/specsync/actions/workflows/docker.yml)
+[![npm](https://img.shields.io/npm/v/@specsync/server)](https://www.npmjs.com/package/@specsync/server)
 
 Collaborative spec review for AI coding agents. Your agent asks questions and submits specs — your team answers and reviews in the browser.
 
@@ -18,35 +18,29 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 
 ## Quick Start
 
-### Docker
+```bash
+# 1. Start the server
+npx @specsync/server
+
+# 2. Install skills for your agents (interactive)
+npx @specsync/skill
+```
+
+Or with Docker:
 
 ```bash
 docker run -p 4000:4000 ghcr.io/hjgraca/specsync
 ```
 
-### From source
-
-```bash
-git clone https://github.com/hjgraca/specsync
-cd specsync
-npm install
-npm start
-```
-
-Server runs at `http://localhost:4000`.
-
-### Install the skill for your agent
-
-```bash
-npx specsync install --to claude    # Claude Code
-npx specsync install --to cursor    # Cursor
-npx specsync install --to copilot   # Copilot CLI
-npx specsync install --to kiro      # Kiro / Kiro CLI
-npx specsync install --to pi        # Pi
-npx specsync install --to all       # All of the above
-```
-
 Then tell your agent: **"ask the team"** or **"submit for review"**
+
+## Packages
+
+| Package | Purpose | Install |
+|---------|---------|---------|
+| [`@specsync/server`](packages/server) | Run the specsync server | `npx @specsync/server` |
+| [`@specsync/skill`](packages/skill) | Interactive skill installer for AI agents | `npx @specsync/skill` |
+| [`@specsync/sdk`](packages/sdk) | TypeScript SDK for programmatic integration | `npm install @specsync/sdk` |
 
 ## How it works
 
@@ -91,15 +85,14 @@ Agent publishes a markdown spec. Team and AI reviewers comment inline. Quoted te
 
 ## Integration Guides
 
-| Agent | Guide | Install command |
-|-------|-------|-----------------|
-| Claude Code | [docs/guides/claude-code.md](docs/guides/claude-code.md) | `npx specsync install --to claude` |
-| Cursor | [docs/guides/cursor.md](docs/guides/cursor.md) | `npx specsync install --to cursor` |
-| Copilot CLI | [docs/guides/copilot-cli.md](docs/guides/copilot-cli.md) | `npx specsync install --to copilot` |
-| Kiro | [docs/guides/kiro.md](docs/guides/kiro.md) | `npx specsync install --to kiro` |
-| Kiro CLI | [docs/guides/kiro-cli.md](docs/guides/kiro-cli.md) | `npx specsync install --to kiro` |
-| Pi | [docs/guides/pi.md](docs/guides/pi.md) | `npx specsync install --to pi` |
-| Any agent | [docs/guides/manual.md](docs/guides/manual.md) | Copy `skills/universal/SKILL.md` |
+| Agent | Guide |
+|-------|-------|
+| Claude Code | [docs/guides/claude-code.md](docs/guides/claude-code.md) |
+| Cursor | [docs/guides/cursor.md](docs/guides/cursor.md) |
+| Copilot CLI | [docs/guides/copilot-cli.md](docs/guides/copilot-cli.md) |
+| Kiro | [docs/guides/kiro.md](docs/guides/kiro.md) |
+| Pi | [docs/guides/pi.md](docs/guides/pi.md) |
+| Any agent | [docs/guides/manual.md](docs/guides/manual.md) |
 
 ## API Reference
 
@@ -196,12 +189,11 @@ Your team answers in the browser. The agent continues with the decision.
 ## Development
 
 ```bash
-npm install
-npm run dev          # starts server + vite dev server with hot reload
-npm test             # run unit tests (221 tests)
-npm run test:e2e     # run Playwright E2E tests
-npm run test:coverage # run with coverage report
-npm run build        # build for production
+pnpm install
+pnpm dev             # starts server + vite dev server with hot reload
+pnpm build           # build all packages
+pnpm test            # run unit tests
+npx playwright test  # run Playwright E2E tests
 ```
 
 ## Contributing

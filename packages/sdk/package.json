@@ -1,0 +1,43 @@
+{
+  "name": "@specsync/sdk",
+  "version": "0.1.0",
+  "description": "TypeScript SDK for specsync — client, bridge, and tools for programmatic integration",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "echo 'no tests yet'"
+  },
+  "keywords": [
+    "specsync",
+    "sdk",
+    "collaborative",
+    "review",
+    "agent",
+    "ai"
+  ],
+  "author": "Henri Graca",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hjgraca/specsync",
+    "directory": "packages/sdk"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.8.0"
+  }
+}
