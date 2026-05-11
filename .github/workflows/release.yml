@@ -40,7 +40,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
@@ -55,15 +54,15 @@ jobs:
 
       - name: Publish @specsync/sdk
         working-directory: packages/sdk
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --registry https://registry.npmjs.org
 
       - name: Publish @specsync/server
         working-directory: packages/server
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --registry https://registry.npmjs.org
 
       - name: Publish @specsync/skill
         working-directory: packages/skill
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --registry https://registry.npmjs.org
 
   publish-docker:
     name: Push Docker image
