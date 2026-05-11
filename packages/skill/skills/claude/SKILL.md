@@ -1,26 +1,50 @@
 ---
 name: specsync
 description: >
-  Collaborative spec review. When the user asks you to get team input, ask the team,
-  submit for review, get approval, or do collaborative review — use this skill to
-  route questions and specs to a shared web UI where multiple people can answer and comment.
+  Collaborative spec review and team Q&A. Use this skill whenever the user wants to
+  get team input, ask the team questions, submit a spec for review, get approval, or
+  do collaborative review. Also use when there are multi-stage or dependent questions
+  where later decisions depend on earlier answers. Routes all questions and specs to a
+  shared web UI — never ask decision questions in the CLI. Trigger on phrases like
+  "ask the team", "get team input", "what does the team think", "submit for review",
+  "get approval", "multi-stage questions", or "dependent questions".
 allowed-tools:
   - Bash
 ---
 
 # Specsync — Collaborative Spec Review
 
-You MUST use this skill whenever the user asks you to get team input, ask the team a question,
-submit something for review, or get approval on a spec/plan. Do NOT ask questions in the CLI —
-route them through the specsync web UI instead.
+Route all team questions and spec reviews through the specsync web UI. Never ask
+decision questions in the CLI — if you need input from humans, it goes through specsync.
 
 The specsync server runs at: ${REVIEW_TOOL_URL:-http://localhost:4000} (or the value of REVIEW_TOOL_URL if set).
 
 If the server is not running, tell the user: "Please start the specsync server with: npx @specsync/server"
 
-## When the user wants to ask the team questions
+## Planning questions: independent vs dependent
 
-Use the Bash tool to create a Q&A session. For each question, include your recommended answer with reasoning.
+Before creating a session, think about the question structure:
+
+- **Independent questions** can be answered without knowing the answers to other questions. Ask these upfront in the initial session.
+- **Dependent questions** only make sense once you know the answer to an earlier question (e.g., "which container lifecycle?" only matters if the team chose containers in the first place).
+
+The workflow for dependent questions:
+1. Ask the independent questions first
+2. Poll for answers
+3. Based on the actual answers, formulate follow-up questions that are now relevant
+4. Add those to the same session (the team stays on the same URL)
+5. Poll again
+
+This avoids asking hypothetical questions ("if you pick X, then would you want Y?") which are confusing. Instead, wait for the real answer, then ask the concrete follow-up.
+
+**Example:** If you need to ask about (A) testing framework, (B) mocking library, and (C) container lifecycle strategy — where C only matters if the team picks Testcontainers for B:
+- Round 1: Ask A and B (independent of each other)
+- Wait for answers
+- Round 2: If B = Testcontainers, ask C as a follow-up on the same session
+
+## Creating a Q&A session
+
+Use the Bash tool to create a session. For each question, include your recommended answer with reasoning.
 
 ```bash
 curl -s -X POST ${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions \
@@ -63,11 +87,12 @@ while true; do
 done
 ```
 
-4. Read the `answers` object from the response. Continue your work using those answers.
+4. Read the `answers` object from the response.
+5. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
 
-## When you have follow-up questions (REUSE the existing session)
+## Adding follow-up questions to the same session
 
-If you already have a Q&A session open and need to ask follow-up questions, ADD them to the same session — do NOT create a new one. The team stays on the same URL and sees the new questions appear automatically.
+When answers reveal that follow-up questions are needed, add them to the existing session. The team stays on the same URL and sees new questions appear automatically.
 
 ```bash
 curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/questions?token={token}" \
@@ -78,7 +103,7 @@ curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/ques
     {
       "id": "followup1",
       "title": "YOUR FOLLOW-UP QUESTION",
-      "context": "Based on the team's previous answer about X...",
+      "context": "Based on the team's choice of X, we now need to decide...",
       "recommendation": "Your recommended answer and WHY",
       "options": [
         {"key": "a", "label": "Option A", "recommended": true, "description": "Why this"},
@@ -94,7 +119,7 @@ EOF
 
 Then poll the same session URL again (same `id` and `token`) until all questions (including the new ones) are answered.
 
-**IMPORTANT:** Always reuse the session when asking follow-up questions in the same conversation. Only create a new session for a completely unrelated topic.
+Only create a new session for a completely unrelated topic.
 
 ## When you have a spec/plan ready for team review
 
@@ -164,8 +189,11 @@ EOF
 
 ## Rules
 
-- For each question, ALWAYS include a `recommendation` field explaining your suggested answer and why
+- For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
 - Generate a unique codename for yourself: `ai:claude-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
-- Never call `document.approve` — only humans approve
+- Never call `document.approve` — only humans approve.
 - Do NOT open the browser — only print/tell the user the URL. They will navigate themselves.
-- If the server returns a connection error, tell the user to start it
+- If the server returns a connection error, tell the user to start it.
+- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask "should I proceed?", "want me to do X?", or any other confirmation question in the CLI.
+- Never use AskUserQuestion or plain text questions to gather decisions. ALL questions that need input go through specsync Q&A sessions.
+- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the CLI.

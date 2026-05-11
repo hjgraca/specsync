@@ -1,19 +1,22 @@
 ---
 name: specsync
 description: >
-  Collaborative spec review for AI agent workflows. Use when you need team input
-  on questions, decisions, or generated specifications. Routes agent questions to
-  a shared Q&A interface and publishes specs for collaborative review with comments,
-  suggestions, and approval gates. Supports multiple reviewers and attached AI agents.
-  Trigger phrases: "ask the team", "submit for review", "get approval", "team review",
-  "collaborative review", "spec review".
+  Collaborative spec review and team Q&A. Use this skill whenever the user wants to
+  get team input, ask the team questions, submit a spec for review, get approval, or
+  do collaborative review. Also use when there are multi-stage or dependent questions
+  where later decisions depend on earlier answers. Routes all questions and specs to a
+  shared web UI — never ask decision questions in the chat. Trigger on phrases like
+  "ask the team", "get team input", "what does the team think", "submit for review",
+  "get approval", "multi-stage questions", or "dependent questions".
 ---
 
 # Specsync — Collaborative Spec Review
 
-When you need team input on questions or want a spec reviewed before proceeding,
-use the specsync server's HTTP API. The server runs at the URL in the
-`REVIEW_TOOL_URL` environment variable (default: `http://localhost:4000`).
+Route all team questions and spec reviews through the specsync web UI. Never ask
+decision questions in the chat — if you need input from humans, it goes through specsync.
+
+The specsync server runs at the URL in the `REVIEW_TOOL_URL` environment variable
+(default: `http://localhost:4000`).
 
 Start the server: `npx @specsync/server`
 
@@ -22,6 +25,23 @@ Start the server: `npx @specsync/server`
 - You have questions that need team consensus before proceeding
 - You've generated a spec/plan and need team review before implementation
 - You want multiple people (or other agents) to comment on a document
+- You have dependent questions where later decisions depend on earlier answers
+
+## Planning questions: independent vs dependent
+
+Before creating a session, think about the question structure:
+
+- **Independent questions** can be answered without knowing the answers to other questions. Ask these upfront in the initial session.
+- **Dependent questions** only make sense once you know the answer to an earlier question (e.g., "which container lifecycle?" only matters if the team chose containers in the first place).
+
+The workflow for dependent questions:
+1. Ask the independent questions first
+2. Poll for answers
+3. Based on the actual answers, formulate follow-up questions that are now relevant
+4. Add those to the same session (the team stays on the same URL)
+5. Poll again
+
+This avoids asking hypothetical questions ("if you pick X, then would you want Y?") which are confusing. Instead, wait for the real answer, then ask the concrete follow-up.
 
 ## Asking Questions (Q&A)
 
@@ -30,7 +50,7 @@ Create a Q&A session:
 ```bash
 curl -s -X POST ${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions \
   -H "Content-Type: application/json" \
-  -d '{"title": "Session Title", "questions": [{"id": "q1", "title": "Your question", "options": [{"key": "a", "label": "Option A"}], "type": "single-select"}]}'
+  -d '{"title": "Session Title", "questions": [{"id": "q1", "title": "Your question", "context": "Background for reviewers", "recommendation": "Your recommended answer and WHY", "options": [{"key": "a", "label": "Option A", "recommended": true, "description": "Why this"}], "type": "single-select"}]}'
 ```
 
 Response includes `id`, `token`, and `url`. Share the URL with the team.
@@ -49,16 +69,16 @@ while true; do
 done
 ```
 
-Answers are in the `answers` object of the response.
+Answers are in the `answers` object of the response. If there are dependent follow-up questions, add them to the same session (see below). Otherwise, act on the answers immediately.
 
 ## Follow-Up Questions (REUSE the existing session)
 
-If you need to ask follow-up questions, ADD them to the same session — do NOT create a new one. The team stays on the same URL.
+When answers reveal that follow-up questions are needed, add them to the existing session. The team stays on the same URL and sees new questions appear automatically.
 
 ```bash
 curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/questions?token={token}" \
   -H "Content-Type: application/json" \
-  -d '{"questions": [{"id": "followup1", "title": "Follow-up question", "options": [...], "type": "single-select"}]}'
+  -d '{"questions": [{"id": "followup1", "title": "Follow-up question", "context": "Based on team choice of X...", "recommendation": "Your rec and WHY", "options": [...], "type": "single-select"}]}'
 ```
 
 Then poll the same session again until all questions are answered. Only create a new session for a completely unrelated topic.
@@ -120,4 +140,7 @@ curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/ops"
 - Never call `document.approve` — only humans approve
 - Poll every 3-5 seconds
 - If server unreachable, tell user to run: `npx @specsync/server`
-- Always include a `recommendation` field in questions
+- Always include a `recommendation` field in questions — the team benefits from seeing your reasoning
+- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask confirmation questions in the chat.
+- Never ask decision questions in the chat. ALL questions that need input go through specsync Q&A sessions.
+- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.
