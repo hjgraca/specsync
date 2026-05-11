@@ -144,14 +144,72 @@ export REVIEW_TOOL_URL=https://specsync.myteam.com # cloud
 - **Ephemeral storage** — SQLite working cache. Abandoned sessions auto-purge after 30 days.
 - **Methodology agnostic** — works with any spec format. The agent decides what to submit.
 
+## Why Specsync?
+
+| Problem | Without Specsync | With Specsync |
+|---------|-----------------|---------------|
+| Agent asks you questions | Questions in CLI, only you see them | Shared Q&A form, whole team answers |
+| Agent writes a spec | You review alone in terminal | Team reviews in browser with comments |
+| Need team approval | Copy-paste to Slack, wait for reply | Approval gate with structured feedback |
+| Multiple reviewers | Everyone asks separately | All comments in one place, threaded |
+| Agent revises after feedback | New file, lost context | Same URL, revision history, comments preserved |
+
+## Example: What Your Agent Does
+
+When you say **"ask the team what database to use"**, your agent:
+
+```bash
+# 1. Creates a Q&A session on the specsync server
+curl -s -X POST http://localhost:4000/qa/sessions \
+  -H "Content-Type: application/json" \
+  -d @- << 'EOF'
+{
+  "title": "Database Decision",
+  "questions": [{
+    "id": "db",
+    "title": "What database for the user service?",
+    "recommendation": "Postgres — already in the stack, team has expertise.",
+    "options": [
+      {"key": "pg", "label": "Postgres", "recommended": true},
+      {"key": "mongo", "label": "MongoDB"},
+      {"key": "dynamo", "label": "DynamoDB"}
+    ],
+    "type": "single-select"
+  }]
+}
+EOF
+
+# 2. Tells you the URL
+# → "Q&A ready at http://localhost:4000/qa/abc?token=xyz"
+
+# 3. Polls until the team answers
+while true; do
+  RESP=$(curl -s "http://localhost:4000/qa/sessions/abc?token=xyz")
+  # When status="completed", continue with the answer
+  sleep 3
+done
+```
+
+Your team answers in the browser. The agent continues with the decision.
+
 ## Development
 
 ```bash
 npm install
-npm run dev     # starts server + vite dev server with hot reload
-npm test        # run tests
-npm run build   # build for production
+npm run dev          # starts server + vite dev server with hot reload
+npm test             # run unit tests (221 tests)
+npm run test:e2e     # run Playwright E2E tests
+npm run test:coverage # run with coverage report
+npm run build        # build for production
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup instructions and guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for reporting vulnerabilities.
 
 ## License
 
