@@ -66,7 +66,7 @@ async function main() {
   }
 
   const serverUrl = await p.text({
-    message: "Specsync server URL:",
+    message: "Specsync server URL (press Tab to use default):",
     placeholder: "http://localhost:4000",
     defaultValue: "http://localhost:4000",
     validate: (value) => {
@@ -117,7 +117,12 @@ async function main() {
   );
 
   p.outro(
-    `Server URL saved to .specsync.json\n  Start the server: npx @specsync/server`,
+    `Server URL saved to .specsync.json
+
+  Next steps:
+  1. Start the server (if not running): npx @specsync/server
+  2. Tell your agent: "ask the team about..." or "submit for review"
+     It will create a session and give you a URL to open in the browser.`,
   );
 }
 
