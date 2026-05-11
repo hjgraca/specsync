@@ -4,9 +4,9 @@ import { generateSlug, generateToken } from "../../src/server/db.js";
 
 describe("db utilities", () => {
   describe("generateSlug", () => {
-    it("returns an 8-character hex string", () => {
+    it("returns a 16-character hex string", () => {
       const slug = generateSlug();
-      expect(slug).toHaveLength(8);
+      expect(slug).toHaveLength(16);
       expect(slug).toMatch(/^[0-9a-f]+$/);
     });
 
