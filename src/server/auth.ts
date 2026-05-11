@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { timingSafeEqual } from "crypto";
 import { getDb } from "./db.js";
 import type { AccessRole } from "../shared/types.js";
 
@@ -96,7 +97,14 @@ export function requireOwner(
     .prepare("SELECT owner_secret FROM documents WHERE slug = ?")
     .get(slug) as { owner_secret: string } | undefined;
 
-  if (!row || row.owner_secret !== ownerSecret) {
+  if (!row) {
+    res.status(403).json({ error: "Invalid owner secret", code: "INVALID_OWNER" });
+    return;
+  }
+
+  const a = Buffer.from(row.owner_secret);
+  const b = Buffer.from(ownerSecret);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
     res.status(403).json({ error: "Invalid owner secret", code: "INVALID_OWNER" });
     return;
   }

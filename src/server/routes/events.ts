@@ -24,8 +24,9 @@ router.get(
     const params: unknown[] = [slug, since];
 
     if (excludeBy) {
-      const pattern = excludeBy.replace("*", "%");
-      query += " AND actor NOT LIKE ?";
+      const escaped = excludeBy.replace(/%/g, "\\%").replace(/_/g, "\\_");
+      const pattern = escaped.replace("*", "%");
+      query += " AND actor NOT LIKE ? ESCAPE '\\'";
       params.push(pattern);
     }
 

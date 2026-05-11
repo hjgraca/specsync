@@ -71,7 +71,7 @@ function startServer() {
 async function createDocument(args: string[]) {
   const filePath = args[0];
   if (!filePath) {
-    console.error("Usage: harness-review create <file.md> [--title 'Title']");
+    console.error("Usage: specsync create <file.md> [--title 'Title']");
     process.exit(1);
   }
 

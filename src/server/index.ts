@@ -12,7 +12,7 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 const dbDir = process.env.REVIEW_TOOL_DB_PATH
   ? path.dirname(process.env.REVIEW_TOOL_DB_PATH)
-  : path.join(process.cwd(), ".harness");
+  : process.cwd();
 mkdirSync(dbDir, { recursive: true });
 
 getDb();
@@ -22,7 +22,7 @@ if (purged > 0) {
 }
 
 server.listen(PORT, HOST, () => {
-  console.log(`Review tool server running at http://${HOST}:${PORT}`);
+  console.log(`Specsync server running at http://${HOST}:${PORT}`);
 });
 
 process.on("SIGINT", () => {

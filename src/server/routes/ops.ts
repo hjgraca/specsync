@@ -2,6 +2,7 @@ import { Router, type Router as RouterType } from "express";
 import { randomUUID } from "crypto";
 import { getDb } from "../db.js";
 import { requireAuth, type AuthenticatedRequest } from "../auth.js";
+import { isAllowedCallbackUrl } from "../url-validator.js";
 import type { Mark, ThreadEntry, EventType } from "../../shared/types.js";
 
 const MAX_QUOTE_LENGTH = 500;
@@ -328,6 +329,7 @@ function fireCallback(slug: string, responseContent: string): void {
     .get(slug) as { callback_url: string | null; callback_session_id: string | null; callback_id: string | null } | undefined;
 
   if (!row?.callback_url || !row.callback_session_id || !row.callback_id) return;
+  if (!isAllowedCallbackUrl(row.callback_url)) return;
 
   fetch(row.callback_url, {
     method: "POST",

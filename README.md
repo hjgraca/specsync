@@ -126,7 +126,7 @@ On the agent side, set `REVIEW_TOOL_URL` to point to your server:
 
 ```bash
 export REVIEW_TOOL_URL=http://localhost:4000       # local (default)
-export REVIEW_TOOL_URL=http://192.168.1.50:4000    # LAN
+export REVIEW_TOOL_URL=http://<your-lan-ip>:4000    # LAN
 export REVIEW_TOOL_URL=https://specsync.myteam.com # cloud
 ```
 

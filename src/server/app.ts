@@ -16,11 +16,32 @@ export function createApp(): Express {
   const bodyLimit = process.env.SPECSYNC_MAX_BODY_SIZE || "5mb";
   app.use(express.json({ limit: bodyLimit }));
 
-  app.use((_req: Request, res: Response, next: NextFunction) => {
+  const corsOrigin = process.env.CORS_ORIGIN || null;
+
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader("Strict-Transport-Security", "max-age=31536000");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:;",
+    );
+
+    if (corsOrigin) {
+      const origin = req.headers.origin;
+      const allowed = corsOrigin === "*" || (origin && corsOrigin.split(",").includes(origin));
+      if (allowed) {
+        res.setHeader("Access-Control-Allow-Origin", origin || corsOrigin);
+        res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, x-share-token, x-owner-secret");
+      }
+      if (req.method === "OPTIONS") {
+        res.status(204).end();
+        return;
+      }
+    }
+
     next();
   });
 

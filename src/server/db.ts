@@ -100,7 +100,7 @@ function initSchema(db: Database.Database): void {
 }
 
 export function generateSlug(): string {
-  return randomBytes(4).toString("hex");
+  return randomBytes(8).toString("hex");
 }
 
 export function generateToken(): string {

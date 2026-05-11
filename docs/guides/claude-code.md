@@ -57,7 +57,7 @@ Waiting for answers...
 If your specsync server isn't running on localhost:4000, set the environment variable:
 
 ```bash
-export REVIEW_TOOL_URL=http://192.168.1.50:4000
+export REVIEW_TOOL_URL=http://<your-lan-ip>:4000
 ```
 
 Or add it to your shell profile for persistence.

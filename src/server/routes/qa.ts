@@ -1,6 +1,7 @@
 import { Router, type Router as RouterType } from "express";
 import { randomUUID } from "crypto";
 import { getDb, generateToken } from "../db.js";
+import { isAllowedCallbackUrl } from "../url-validator.js";
 import type { StructuredQuestion, QASession } from "../../shared/types.js";
 
 const router: RouterType = Router();
@@ -176,7 +177,7 @@ router.post("/qa/sessions/:id/answer", (req, res) => {
     const cbRow = db.prepare("SELECT callback_url, callback_session_id, callback_id FROM qa_sessions WHERE id = ?")
       .get(id) as { callback_url: string | null; callback_session_id: string | null; callback_id: string | null } | undefined;
 
-    if (cbRow?.callback_url && cbRow.callback_session_id && cbRow.callback_id) {
+    if (cbRow?.callback_url && cbRow.callback_session_id && cbRow.callback_id && isAllowedCallbackUrl(cbRow.callback_url)) {
       fetch(cbRow.callback_url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
