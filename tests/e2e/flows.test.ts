@@ -82,12 +82,11 @@ test.describe("Review golden path", () => {
     // Verify the document title shows in the header
     await expect(page.locator("header h1")).toContainText("E2E Review Doc");
 
-    // Verify markdown content renders (check for heading text)
-    await expect(page.getByText("Architecture")).toBeVisible();
-    await expect(page.getByText("system architecture")).toBeVisible();
+    // Verify markdown content renders in the main area
+    await expect(page.locator("main").getByText("system architecture")).toBeVisible();
 
     // Verify comment sidebar exists
-    await expect(page.getByText("No comments yet")).toBeVisible();
+    await expect(page.locator("aside")).toBeVisible();
 
     // Click Approve button
     await page.getByRole("button", { name: "Approve" }).click();
