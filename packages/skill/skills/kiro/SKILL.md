@@ -63,6 +63,37 @@ done
 
 5. Read the `answers` object from the response. Continue your work using those answers.
 
+## When you have follow-up questions (REUSE the existing session)
+
+If you already have a Q&A session open and need to ask follow-up questions, ADD them to the same session — do NOT create a new one. The team stays on the same URL and sees the new questions appear automatically.
+
+```bash
+curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/questions?token={token}" \
+  -H "Content-Type: application/json" \
+  -d @- << 'EOF'
+{
+  "questions": [
+    {
+      "id": "followup1",
+      "title": "YOUR FOLLOW-UP QUESTION",
+      "context": "Based on the team's previous answer about X...",
+      "recommendation": "Your recommended answer and WHY",
+      "options": [
+        {"key": "a", "label": "Option A", "recommended": true, "description": "Why this"},
+        {"key": "b", "label": "Option B", "description": "Why this"}
+      ],
+      "default": "a",
+      "type": "single-select"
+    }
+  ]
+}
+EOF
+```
+
+Then poll the same session URL again (same `id` and `token`) until all questions (including the new ones) are answered.
+
+**IMPORTANT:** Always reuse the session when asking follow-up questions in the same conversation. Only create a new session for a completely unrelated topic.
+
 ## When you have a spec/plan ready for team review
 
 Use the shell tool to publish the spec:

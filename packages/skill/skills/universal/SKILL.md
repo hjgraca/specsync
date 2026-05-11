@@ -51,6 +51,18 @@ done
 
 Answers are in the `answers` object of the response.
 
+## Follow-Up Questions (REUSE the existing session)
+
+If you need to ask follow-up questions, ADD them to the same session — do NOT create a new one. The team stays on the same URL.
+
+```bash
+curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/questions?token={token}" \
+  -H "Content-Type: application/json" \
+  -d '{"questions": [{"id": "followup1", "title": "Follow-up question", "options": [...], "type": "single-select"}]}'
+```
+
+Then poll the same session again until all questions are answered. Only create a new session for a completely unrelated topic.
+
 ## Submitting Specs for Review
 
 ```bash
