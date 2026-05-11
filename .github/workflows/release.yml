@@ -54,13 +54,16 @@ jobs:
       - run: pnpm -r build
 
       - name: Publish @specsync/sdk
-        run: pnpm --filter @specsync/sdk publish --provenance --access public --no-git-checks
+        working-directory: packages/sdk
+        run: npm publish --provenance --access public
 
       - name: Publish @specsync/server
-        run: pnpm --filter @specsync/server publish --provenance --access public --no-git-checks
+        working-directory: packages/server
+        run: npm publish --provenance --access public
 
       - name: Publish @specsync/skill
-        run: pnpm --filter @specsync/skill publish --provenance --access public --no-git-checks
+        working-directory: packages/skill
+        run: npm publish --provenance --access public
 
   publish-docker:
     name: Push Docker image
