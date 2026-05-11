@@ -42,8 +42,6 @@ jobs:
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
-      - run: npm config delete //registry.npmjs.org/:_authToken
-
       - run: pnpm install --frozen-lockfile
 
       - name: Set version from release tag
@@ -57,15 +55,15 @@ jobs:
 
       - name: Publish @specsync/sdk
         working-directory: packages/sdk
-        run: npm publish --provenance --access public --registry https://registry.npmjs.org
+        run: npm publish --access public
 
       - name: Publish @specsync/server
         working-directory: packages/server
-        run: npm publish --provenance --access public --registry https://registry.npmjs.org
+        run: npm publish --access public
 
       - name: Publish @specsync/skill
         working-directory: packages/skill
-        run: npm publish --provenance --access public --registry https://registry.npmjs.org
+        run: npm publish --access public
 
   publish-docker:
     name: Push Docker image
