@@ -79,8 +79,8 @@ test.describe("Review golden path", () => {
     // Navigate to the document review page
     await page.goto(`/review/${doc.slug}?token=${doc.accessToken}`);
 
-    // Verify the document title shows
-    await expect(page.locator("h1")).toContainText("E2E Review Doc");
+    // Verify the document title shows in the header
+    await expect(page.locator("header h1")).toContainText("E2E Review Doc");
 
     // Verify markdown content renders (check for heading text)
     await expect(page.getByText("Architecture")).toBeVisible();
