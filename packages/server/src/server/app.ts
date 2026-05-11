@@ -89,27 +89,22 @@ export function createApp(): Express {
     app.use(express.static(clientDist));
   }
 
+  const qaHtmlCandidates = ["qa/index.html", "src/client/qa/index.html"];
+  const reviewHtmlCandidates = ["review/index.html", "src/client/review/index.html"];
+
   app.get("/qa/:sessionId", (_req, res) => {
-    const candidates = [
-      resolve(clientDist, "qa/index.html"),
-      resolve(clientDist, "src/client/qa/index.html"),
-    ];
-    const indexPath = candidates.find(existsSync);
-    if (indexPath) {
-      res.sendFile(indexPath, { root: "/" });
+    const match = qaHtmlCandidates.find((p) => existsSync(resolve(clientDist, p)));
+    if (match) {
+      res.sendFile(match, { root: clientDist });
     } else {
       res.status(200).send("<!-- Q&A UI: run 'pnpm build' to serve the client -->");
     }
   });
 
   app.get("/review/:slug", (_req, res) => {
-    const candidates = [
-      resolve(clientDist, "review/index.html"),
-      resolve(clientDist, "src/client/review/index.html"),
-    ];
-    const indexPath = candidates.find(existsSync);
-    if (indexPath) {
-      res.sendFile(indexPath, { root: "/" });
+    const match = reviewHtmlCandidates.find((p) => existsSync(resolve(clientDist, p)));
+    if (match) {
+      res.sendFile(match, { root: clientDist });
     } else {
       res.status(200).send("<!-- Review UI: run 'pnpm build' to serve the client -->");
     }
