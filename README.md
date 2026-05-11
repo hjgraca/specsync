@@ -1,5 +1,8 @@
 # Specsync
 
+[![Tests](https://github.com/hjgraca/specsync/actions/workflows/test.yml/badge.svg)](https://github.com/hjgraca/specsync/actions/workflows/test.yml)
+[![Docker](https://github.com/hjgraca/specsync/actions/workflows/docker.yml/badge.svg)](https://github.com/hjgraca/specsync/actions/workflows/docker.yml)
+
 Collaborative spec review for AI coding agents. Your agent asks questions and submits specs — your team answers and reviews in the browser.
 
 ![Spec Review UI](screenshots/review-ui.png)
