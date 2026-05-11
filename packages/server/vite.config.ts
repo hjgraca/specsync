@@ -27,6 +27,7 @@ export default defineConfig({
   },
   test: {
     exclude: ["node_modules/**"],
+    fileParallelism: false,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

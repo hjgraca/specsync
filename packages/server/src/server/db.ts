@@ -1,4 +1,4 @@
-import Database from "better-sqlite3";
+import Database from "libsql";
 import { randomBytes } from "crypto";
 import path from "path";
 
@@ -9,7 +9,7 @@ export function getDb(): Database.Database {
     const dbPath =
       process.env.REVIEW_TOOL_DB_PATH ||
       path.join(process.cwd(), "specsync.db");
-    db = Database(dbPath);
+    db = new Database(dbPath);
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
     initSchema(db);

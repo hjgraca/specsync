@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import Database from "better-sqlite3";
+import Database from "libsql";
 import { generateSlug, generateToken } from "../src/server/db.js";
 
 describe("db utilities", () => {
@@ -33,7 +33,7 @@ describe("db utilities", () => {
     let db: Database.Database;
 
     beforeEach(() => {
-      db = Database(":memory:");
+      db = new Database(":memory:");
       db.pragma("journal_mode = WAL");
       db.pragma("foreign_keys = ON");
       db.exec(`
