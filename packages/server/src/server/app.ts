@@ -83,7 +83,7 @@ export function createApp(): Express {
   app.use(presenceRoutes);
 
   const __dirname = dirname(fileURLToPath(import.meta.url));
-  const clientDist = resolve(__dirname, "../../dist/client");
+  const clientDist = resolve(__dirname, "../client");
 
   if (existsSync(clientDist)) {
     app.use(express.static(clientDist));
