@@ -96,7 +96,7 @@ export function createApp(): Express {
     ];
     const indexPath = candidates.find(existsSync);
     if (indexPath) {
-      res.sendFile(indexPath);
+      res.sendFile(indexPath, { root: "/" });
     } else {
       res.status(200).send("<!-- Q&A UI: run 'pnpm build' to serve the client -->");
     }
@@ -109,7 +109,7 @@ export function createApp(): Express {
     ];
     const indexPath = candidates.find(existsSync);
     if (indexPath) {
-      res.sendFile(indexPath);
+      res.sendFile(indexPath, { root: "/" });
     } else {
       res.status(200).send("<!-- Review UI: run 'pnpm build' to serve the client -->");
     }
