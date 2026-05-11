@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import Database from "better-sqlite3";
-import { generateSlug, generateToken } from "../../src/server/db.js";
+import { generateSlug, generateToken } from "../src/server/db.js";
 
 describe("db utilities", () => {
   describe("generateSlug", () => {

@@ -1,14 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import express, { type Request, type Response } from "express";
 import request from "supertest";
-import { getDb } from "../../src/server/db.js";
+import { getDb } from "../src/server/db.js";
 import {
   extractToken,
   requireAuth,
   requireOwner,
   requireRole,
   type AuthenticatedRequest,
-} from "../../src/server/auth.js";
+} from "../src/server/auth.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

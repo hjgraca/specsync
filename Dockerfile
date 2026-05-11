@@ -1,12 +1,19 @@
 FROM node:22-alpine AS builder
 
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate
+
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/sdk/package.json packages/sdk/
+COPY packages/server/package.json packages/server/
 
-COPY . .
-RUN npx tsc -p tsconfig.build.json && npx vite build
+RUN pnpm install --frozen-lockfile
+
+COPY packages/sdk/ packages/sdk/
+COPY packages/server/ packages/server/
+
+RUN pnpm --filter @specsync/sdk build && pnpm --filter @specsync/server build
 
 FROM node:22-alpine
 
@@ -14,10 +21,12 @@ RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
 
-COPY --from=builder /app/dist/ dist/
-COPY --from=builder /app/package.json .
+COPY --from=builder /app/packages/server/dist/ dist/
+COPY --from=builder /app/packages/server/package.json .
 
-RUN npm install --omit=dev
+RUN corepack enable && corepack prepare pnpm@10.11.0 --activate && \
+    pnpm install --prod --ignore-scripts && \
+    pnpm rebuild better-sqlite3
 
 ENV PORT=4000
 ENV HOST=0.0.0.0
@@ -29,4 +38,4 @@ RUN mkdir -p /data && chown app:app /data
 
 USER app
 
-CMD ["node", "dist/server/index.js"]
+CMD ["node", "dist/cli.js"]
