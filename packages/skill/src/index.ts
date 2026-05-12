@@ -17,6 +17,7 @@ interface AgentTarget {
 const TARGETS: AgentTarget[] = [
   { id: "claude", label: "Claude Code", dir: ".claude/skills/specsync", skillSource: "claude" },
   { id: "cursor", label: "Cursor", dir: ".cursor/skills/specsync", skillSource: "cursor" },
+  { id: "opencode", label: "OpenCode", dir: ".opencode/skills/specsync", skillSource: "opencode" },
   { id: "copilot", label: "GitHub Copilot / Codex", dir: ".agents/skills/specsync", skillSource: "copilot" },
   { id: "kiro", label: "Kiro", dir: ".kiro/skills/specsync", skillSource: "kiro" },
   { id: "pi", label: "Pi", dir: ".pi/skills/specsync", skillSource: "pi" },
@@ -28,6 +29,7 @@ function detectAgents(cwd: string): string[] {
   const dirToId: Record<string, string> = {
     ".claude": "claude",
     ".cursor": "cursor",
+    ".opencode": "opencode",
     ".agents": "copilot",
     ".kiro": "kiro",
     ".pi": "pi",

@@ -14,7 +14,7 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 
 **Spec Review** — Your agent publishes a plan or spec. Your team reviews with inline comments and suggestions. Approve or request changes. AI review agents can participate too.
 
-**Any agent** — Works with Claude Code, Cursor, Copilot, Kiro, Pi, or any agent with shell access. No plugins required — just HTTP + curl.
+**Any agent** — Works with Claude Code, Cursor, OpenCode, Copilot, Kiro, Pi, or any agent with shell access. No plugins required — just HTTP + curl.
 
 ## Quick Start
 
@@ -89,6 +89,7 @@ Agent publishes a markdown spec. Team and AI reviewers comment inline. Quoted te
 |-------|-------|
 | Claude Code | [docs/guides/claude-code.md](docs/guides/claude-code.md) |
 | Cursor | [docs/guides/cursor.md](docs/guides/cursor.md) |
+| OpenCode | [docs/guides/opencode.md](docs/guides/opencode.md) |
 | Copilot CLI | [docs/guides/copilot-cli.md](docs/guides/copilot-cli.md) |
 | Kiro | [docs/guides/kiro.md](docs/guides/kiro.md) |
 | Pi | [docs/guides/pi.md](docs/guides/pi.md) |
