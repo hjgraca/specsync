@@ -12,7 +12,7 @@ export default defineConfig({
   reporter: [["html", { open: "never" }]],
   projects: [{ name: "chromium", use: { browserName: "chromium" } }],
   webServer: {
-    command: "npx tsx packages/server/src/cli.ts",
+    command: "node packages/server/dist/cli.js",
     port: 4000,
     reuseExistingServer: true,
   },
