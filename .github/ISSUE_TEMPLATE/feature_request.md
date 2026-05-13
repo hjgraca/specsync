@@ -15,4 +15,4 @@ How should it work?
 What else did you consider?
 
 **Additional context**
-Any other context.
+Any other context (agent used, deployment setup, etc.).

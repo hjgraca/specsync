@@ -12,8 +12,8 @@ How was it implemented?
 
 ## Testing
 
-- [ ] Unit tests pass (`npm test`)
-- [ ] E2E tests pass (`npm run test:e2e`)
+- [ ] Unit tests pass (`pnpm -r test`)
+- [ ] E2E tests pass (`npx playwright test`)
 - [ ] Manually tested with at least one agent
 
 ## Screenshots (if UI change)

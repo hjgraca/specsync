@@ -26,7 +26,7 @@ We will coordinate disclosure with you. We will not take legal action against re
 
 ### In Scope
 
-- Server-side code (`src/server/`)
+- Server-side code (`packages/server/`)
 - Authentication and token handling
 - API endpoints and WebSocket connections
 - Input validation and sanitization
