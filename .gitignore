@@ -10,3 +10,5 @@ test-results/
 playwright-report/
 .claude/settings.local.json
 cdk.out/
+.opencode
+.specsync.json

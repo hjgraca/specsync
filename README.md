@@ -73,6 +73,8 @@ Set up specsync for collaborative spec review.
 
 3. Write .specsync.json to the project root with this content:
    {"serverUrl": "http://localhost:4000"}
+
+4. Restart your agent session so the new skill is discovered.
 ```
 
 ## Packages

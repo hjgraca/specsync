@@ -26,9 +26,22 @@ allowed-tools:
 Route all team questions and spec reviews through the specsync web UI. Never ask
 decision questions in the chat — if you need input from humans, it goes through specsync.
 
-The specsync server runs at: ${REVIEW_TOOL_URL:-http://localhost:4000} (or the value of REVIEW_TOOL_URL if set).
+## Server URL Resolution
 
-If the server is not running, tell the user: "Please start the specsync server with: npx @specsync/server"
+Before making any API call, resolve the server URL using this priority:
+
+1. **`.specsync.json`** in the project root — read the `serverUrl` field
+2. **`REVIEW_TOOL_URL`** environment variable
+3. **`http://localhost:4000`** (default fallback)
+
+```bash
+SPECSYNC_URL=$(cat .specsync.json 2>/dev/null | grep -o '"serverUrl"\s*:\s*"[^"]*"' | cut -d'"' -f4)
+SPECSYNC_URL=${SPECSYNC_URL:-${REVIEW_TOOL_URL:-http://localhost:4000}}
+```
+
+Use `$SPECSYNC_URL` as the base URL for all API calls below.
+
+If the server is unreachable, tell the user to either configure `.specsync.json` or run: `npx @specsync/server`
 
 ## Planning questions: independent vs dependent
 
@@ -51,7 +64,7 @@ This avoids asking hypothetical questions ("if you pick X, then would you want Y
 Use the shell tool to create a session. For each question, include your recommended answer with reasoning.
 
 ```bash
-curl -s -X POST ${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions \
+curl -s -X POST $SPECSYNC_URL/qa/sessions \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {
@@ -81,7 +94,7 @@ After creating the session:
 
 ```bash
 while true; do
-  RESP=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}?token={token}")
+  RESP=$(curl -s "$SPECSYNC_URL/qa/sessions/{id}?token={token}")
   STATUS=$(echo "$RESP" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
   if [ "$STATUS" = "completed" ]; then
     echo "$RESP"
@@ -99,7 +112,7 @@ done
 When answers reveal that follow-up questions are needed, add them to the existing session. The team stays on the same URL and sees new questions appear automatically.
 
 ```bash
-curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/qa/sessions/{id}/questions?token={token}" \
+curl -s -X POST "$SPECSYNC_URL/qa/sessions/{id}/questions?token={token}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {
@@ -130,7 +143,7 @@ Only create a new session for a completely unrelated topic.
 Use the shell tool to publish the spec:
 
 ```bash
-curl -s -X POST ${REVIEW_TOOL_URL:-http://localhost:4000}/documents \
+curl -s -X POST $SPECSYNC_URL/documents \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {
@@ -147,7 +160,7 @@ After creating:
 
 ```bash
 while true; do
-  RESP=$(curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/events/pending?since=0" \
+  RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=0" \
     -H "x-share-token: {accessToken}")
   if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
     echo "$RESP"
@@ -163,7 +176,7 @@ done
 - If changes requested: read the comments, revise the spec, and update:
 
 ```bash
-curl -s -X PUT "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}" \
+curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
   -H "x-share-token: {accessToken}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
@@ -179,11 +192,11 @@ While waiting for approval, check for new comments and reply:
 
 ```bash
 # Read current state (see all comments)
-curl -s "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/state" \
+curl -s "$SPECSYNC_URL/documents/{slug}/state" \
   -H "x-share-token: {accessToken}"
 
 # Reply to a comment
-curl -s -X POST "${REVIEW_TOOL_URL:-http://localhost:4000}/documents/{slug}/ops" \
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-share-token: {accessToken}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
