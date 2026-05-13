@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## 0.1.14 (2026-05-13)
+
+## What's Changed
+
+- **Backfilled CHANGELOG.md** with all releases from 0.1.0 through 0.1.13
+- **Auto-generate changelog on release** — new `update-changelog` job in the release workflow commits release notes to `CHANGELOG.md` after each release
+- **Updated community files** — added OpenCode to bug report agent list, fixed PR template test commands for pnpm, replaced placeholder contact in Code of Conduct, corrected source path in Security policy
+
 ## 0.1.13 (2026-05-13)
 
 ### Changed
