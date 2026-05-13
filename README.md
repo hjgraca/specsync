@@ -16,26 +16,14 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 
 **Any agent** — Works with Claude Code, Cursor, OpenCode, Copilot, Kiro, Pi, or any agent with shell access. No plugins required — just HTTP + curl.
 
-## Set Up Your Agent
-
-Copy and paste this into your agent (Claude Code, Cursor, Copilot, etc.):
-
-```
-I'd like you to set up specsync: collaborative spec review for AI coding agents. Your team answers questions and reviews specs in the browser.
-
-Install the specsync skill: npx @specsync/skill
-
-Then start the server: npx @specsync/server
-```
-
 ## Quick Start
 
 ```bash
-# 1. Install skills for your agents (interactive, one-time)
-npx @specsync/skill
-
-# 2. Start the server
+# 1. Start the server
 npx @specsync/server
+
+# 2. Install skills for your agents (interactive)
+npx @specsync/skill
 ```
 
 Or run the server with Docker:
@@ -45,6 +33,47 @@ docker run -p 4000:4000 ghcr.io/hjgraca/specsync
 ```
 
 Then tell your agent: **"ask the team"** or **"submit for review"**
+
+## Set Up Your Agent
+
+### Option A: Run the installer yourself
+
+The interactive installer detects your agents and installs the skill files:
+
+```bash
+npx @specsync/skill
+```
+
+You can also run it in non-interactive mode:
+
+```bash
+# Install for a single agent
+npx @specsync/skill --agent opencode
+
+# Install for all supported agents
+npx @specsync/skill --all
+
+# With a custom server URL
+npx @specsync/skill --agent claude --server-url https://specsync.myteam.com
+```
+
+### Option B: Paste this into your agent
+
+If you want your agent to set itself up, start the server first (`npx @specsync/server`), then paste this into your agent's chat. Replace `<agent>` with your agent type (`claude`, `cursor`, `opencode`, `copilot`, `kiro`, `pi`):
+
+```
+Set up specsync for collaborative spec review.
+
+1. Create the skill directory:
+   mkdir -p .<agent>/skills/specsync
+
+2. Download the skill file from:
+   https://raw.githubusercontent.com/hjgraca/specsync/main/packages/skill/skills/<agent>/SKILL.md
+   Save it to .<agent>/skills/specsync/SKILL.md
+
+3. Write .specsync.json to the project root with this content:
+   {"serverUrl": "http://localhost:4000"}
+```
 
 ## Packages
 
