@@ -95,6 +95,20 @@ Agent publishes a markdown spec. Team and AI reviewers comment inline. Quoted te
 
 ![Review UI](screenshots/review-ui.png)
 
+## Deploy to the Cloud
+
+Run a shared Specsync server for your team. Each guide gets you from zero to a live HTTPS URL.
+
+| Cloud | Service | Guide |
+|-------|---------|-------|
+| AWS | App Runner (CDK) | [docs/guides/deploy-aws.md](docs/guides/deploy-aws.md) |
+| GCP | Cloud Run | [docs/guides/deploy-gcp.md](docs/guides/deploy-gcp.md) |
+| Azure | Container Apps | [docs/guides/deploy-azure.md](docs/guides/deploy-azure.md) |
+| Railway | Railway | [docs/guides/deploy-railway.md](docs/guides/deploy-railway.md) |
+| Fly.io | Fly Machines | [docs/guides/deploy-flyio.md](docs/guides/deploy-flyio.md) |
+
+Then re-run `npx @specsync/skill` and enter the deployed URL when prompted. This saves it to `.specsync.json` so all agents use it automatically.
+
 ## Integration Guides
 
 | Agent | Guide |
