@@ -16,17 +16,29 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 
 **Any agent** — Works with Claude Code, Cursor, OpenCode, Copilot, Kiro, Pi, or any agent with shell access. No plugins required — just HTTP + curl.
 
+## Set Up Your Agent
+
+Copy and paste this into your agent (Claude Code, Cursor, Copilot, etc.):
+
+```
+I'd like you to set up specsync: collaborative spec review for AI coding agents. Your team answers questions and reviews specs in the browser.
+
+Install the specsync skill: npx @specsync/skill
+
+Then start the server: npx @specsync/server
+```
+
 ## Quick Start
 
 ```bash
-# 1. Start the server
-npx @specsync/server
-
-# 2. Install skills for your agents (interactive)
+# 1. Install skills for your agents (interactive, one-time)
 npx @specsync/skill
+
+# 2. Start the server
+npx @specsync/server
 ```
 
-Or with Docker:
+Or run the server with Docker:
 
 ```bash
 docker run -p 4000:4000 ghcr.io/hjgraca/specsync
