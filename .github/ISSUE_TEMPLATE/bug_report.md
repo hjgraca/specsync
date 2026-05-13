@@ -20,7 +20,7 @@ What you expected to happen.
 **Environment**
 - OS: 
 - Node version: 
-- Agent: (Claude Code / Kiro / Copilot / Cursor / Pi)
+- Agent: (Claude Code / Kiro / Copilot / Cursor / OpenCode / Pi)
 - Specsync version:
 
 **Screenshots**

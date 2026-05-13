@@ -109,3 +109,54 @@ jobs:
           tags: |
             ghcr.io/hjgraca/specsync:latest
             ghcr.io/hjgraca/specsync:${{ steps.version.outputs.version }}
+
+  update-changelog:
+    name: Update CHANGELOG.md
+    needs: [publish-npm, publish-docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update CHANGELOG.md
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_BODY: ${{ github.event.release.body }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          DATE=$(date -u +%Y-%m-%d)
+          ENTRY="## ${VERSION} (${DATE})"
+
+          # Skip if this version is already in the changelog
+          if grep -qF "$ENTRY" CHANGELOG.md; then
+            echo "Version ${VERSION} already in CHANGELOG.md, skipping"
+            exit 0
+          fi
+
+          # Convert release body from markdown to changelog format
+          # Strip HTML tags, keep markdown structure
+          BODY=$(echo "$RELEASE_BODY" | sed 's/<[^>]*>//g' | sed '/^$/N;/^\n$/d')
+
+          # Insert new entry after the header lines (line 5, after the semver link line)
+          HEADER_END=5
+          {
+            head -n "$HEADER_END" CHANGELOG.md
+            echo ""
+            echo "$ENTRY"
+            echo ""
+            echo "$BODY"
+            tail -n +"$((HEADER_END + 1))" CHANGELOG.md
+          } > CHANGELOG.tmp
+          mv CHANGELOG.tmp CHANGELOG.md
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "docs: update CHANGELOG.md for ${RELEASE_TAG}"
+          git push
