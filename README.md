@@ -19,20 +19,21 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 ## Quick Start
 
 ```bash
-# 1. Start the server
-npx @specsync/server
-
-# 2. Install skills for your agents
+# 1. Install skills for your agents
 npx skills add hjgraca/specsync
-```
 
-Or run the server with Docker:
-
-```bash
-docker run -p 4000:4000 ghcr.io/hjgraca/specsync
+# 2. Point your agent at any specsync server
+#    Run /specsync-setup and enter the URL (cloud, shared, or local)
 ```
 
 Then tell your agent: **"ask the team"** or **"submit for review"**
+
+The server can run anywhere your team can reach — a cloud deployment, a shared machine, or locally for solo use. See [Deploy to the Cloud](#deploy-to-the-cloud) for hosted options, or run it locally:
+
+```bash
+npx @specsync/server                        # npm
+docker run -p 4000:4000 ghcr.io/hjgraca/specsync  # Docker
+```
 
 ## Set Up Your Agent
 
@@ -46,11 +47,11 @@ npx skills add hjgraca/specsync
 
 The CLI will detect your installed agents, let you pick which skills to install (`specsync` and `specsync-setup`), and place the skill files in the right directories.
 
-After installation, tell your agent to run `/specsync-setup` to configure the server URL and create `.specsync.json`.
+After installation, tell your agent to run `/specsync-setup` to configure the server URL and create `.specsync.json`. This points your agent at whatever server your team uses — cloud, shared, or local.
 
 ### Option B: Paste this into your agent
 
-Start the server first (`npx @specsync/server`), then paste this into your agent's chat:
+Paste this into your agent's chat:
 
 ```
 Set up specsync for collaborative spec review.
@@ -64,7 +65,7 @@ Set up specsync for collaborative spec review.
      -o .claude/skills/specsync-setup/SKILL.md --create-dirs
 
 3. Write .specsync.json to the project root:
-   {"serverUrl": "http://localhost:4000"}
+   {"serverUrl": "https://specsync.yourteam.com"}
 
 4. Restart your agent session so the new skills are discovered.
 ```
@@ -81,30 +82,79 @@ Replace `.claude` with your agent's skill directory (`.cursor`, `.agents`, `.kir
 
 ## How it works
 
-```
-Your coding agent                    Specsync server                    Your team
-      │                                     │                               │
-      │── POST /qa/sessions ──────────────►│                               │
-      │◄── { url, token } ────────────────│                               │
-      │                                     │── renders Q&A form ─────────►│
-      │   (polls every 3s)                  │                               │
-      │── GET /qa/sessions/:id ───────────►│◄── answers submitted ────────│
-      │◄── { status: "completed" } ────────│                               │
-      │                                     │                               │
-      │── POST /documents ────────────────►│                               │
-      │◄── { docUrl, slug, token } ────────│── renders review UI ────────►│
-      │                                     │                               │
-      │   (polls every 3s)                  │◄── comments + approve ───────│
-      │── GET /events/pending ────────────►│                               │
-      │◄── { "document.approved" } ────────│                               │
-      │                                     │                               │
-      ▼ continues with approved spec        │                               │
+```mermaid
+sequenceDiagram
+    participant Agent as Your coding agent
+    participant Server as Specsync server
+    participant Team as Your team
+
+    Agent->>Server: POST /qa/sessions
+    Server-->>Agent: { url, token }
+    Server->>Team: renders Q&A form
+    loop polls every 3s
+        Agent->>Server: GET /qa/sessions/:id
+    end
+    Team->>Server: answers submitted
+    Server-->>Agent: { status: "completed" }
+
+    Agent->>Server: POST /documents
+    Server-->>Agent: { docUrl, slug, token }
+    Server->>Team: renders review UI
+    loop polls every 3s
+        Agent->>Server: GET /events/pending
+    end
+    Team->>Server: comments + approve
+    Server-->>Agent: { "document.approved" }
+
+    Note over Agent: continues with approved spec
 ```
 
 1. Agent calls specsync API (creates Q&A session or publishes spec)
 2. Specsync renders it in the browser (shareable URL, QR code)
 3. Team answers or reviews collaboratively — real-time presence shows who's online
 4. Agent polls for completion, gets results, continues working
+
+## AI Agent Reviewers (Bridge API)
+
+Any agent can join a spec review as a reviewer — post comments, reply to threads, and participate alongside your human team. When a document is created, the response includes a `bridgeUrl`. Hand that URL to another agent and it can review the spec autonomously.
+
+```mermaid
+sequenceDiagram
+    participant Author as Author agent
+    participant Server as Specsync server
+    participant Reviewer as Reviewer agent(s)
+
+    Author->>Server: POST /documents
+    Server-->>Author: { docUrl, bridgeUrl }
+
+    Author->>Reviewer: "Review this: {bridgeUrl}"
+    Reviewer->>Server: GET /state
+    Server-->>Reviewer: { markdown, marks }
+    Reviewer->>Server: POST /ops (comment)
+
+    loop polls for approval
+        Author->>Server: GET /events/pending
+    end
+```
+
+**How to use it:**
+
+1. Your authoring agent submits a spec and gets back the `bridgeUrl`
+2. Pass the `bridgeUrl` to any other agent (Claude Code, Cursor, a CI bot, a dedicated security reviewer agent, etc.)
+3. The reviewer agent reads the spec via `GET {bridgeUrl}/state` and posts comments via `POST {bridgeUrl}/ops`:
+
+```bash
+# Reviewer reads the spec
+curl -s "$BRIDGE_URL/state" -H "x-share-token: $TOKEN"
+
+# Reviewer posts a comment
+curl -s -X POST "$BRIDGE_URL/ops" \
+  -H "x-share-token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"type":"comment.add","by":"ai:security-reviewer","quote":"the relevant text","text":"Consider rate limiting here"}'
+```
+
+This lets you build multi-agent review workflows — a security agent, a performance agent, and a domain expert agent can all review the same spec concurrently, with their comments appearing alongside human feedback in the browser.
 
 ## Screenshots
 
@@ -122,7 +172,7 @@ Agent publishes a markdown spec. Team and AI reviewers comment inline. Quoted te
 
 ## Deploy to the Cloud
 
-Run a shared Specsync server for your team. Each guide gets you from zero to a live HTTPS URL.
+For team use, deploy Specsync to a shared URL so all agents and team members connect to the same instance. Each guide gets you from zero to a live HTTPS URL.
 
 | Cloud | Service | Guide |
 |-------|---------|-------|
@@ -165,26 +215,33 @@ See [docs/api-reference.md](docs/api-reference.md) for all HTTP endpoints.
 
 ## Configuration
 
+### Agent-side (where to find the server)
+
+The recommended way is `.specsync.json` in your project root — committed to the repo so every team member's agent connects to the same server:
+
+```json
+{"serverUrl": "https://specsync.yourteam.com"}
+```
+
+Run `/specsync-setup` in your agent to create this file interactively.
+
+Resolution order: `.specsync.json` → `REVIEW_TOOL_URL` env var → `http://localhost:4000`
+
+### Server-side
+
 | Environment variable | Default | Description |
 |---------------------|---------|-------------|
 | `PORT` | `4000` | Server port |
 | `HOST` | `0.0.0.0` | Bind address |
 | `REVIEW_TOOL_DB_PATH` | `./specsync.db` | SQLite database path |
 
-On the agent side, set `REVIEW_TOOL_URL` to point to your server:
-
-```bash
-export REVIEW_TOOL_URL=http://localhost:4000       # local (default)
-export REVIEW_TOOL_URL=http://<your-lan-ip>:4000    # LAN
-export REVIEW_TOOL_URL=https://specsync.myteam.com # cloud
-```
-
 ## Features
 
+- **Deploy anywhere** — cloud, shared team server, or local. One URL in `.specsync.json` connects all agents.
+- **Multi-agent review** — attach reviewer agents (security, performance, domain experts) via the bridge URL. They comment alongside humans.
 - **Zero-friction access** — share a URL, no login required. Anonymous codenames for presence.
 - **Real-time presence** — see who's viewing the Q&A or review right now.
 - **QR codes** — scan to open on mobile, share with teammates.
-- **Agent participation** — AI reviewers can comment and reply via the bridge API.
 - **Approval gate** — specs stay in review until explicitly approved or rejected.
 - **Revision tracking** — update a spec after feedback, same URL, comments preserved.
 - **Ephemeral storage** — SQLite working cache. Abandoned sessions auto-purge after 30 days.
@@ -205,8 +262,10 @@ export REVIEW_TOOL_URL=https://specsync.myteam.com # cloud
 When you say **"ask the team what database to use"**, your agent:
 
 ```bash
+# Reads server URL from .specsync.json (e.g., https://specsync.yourteam.com)
+
 # 1. Creates a Q&A session on the specsync server
-curl -s -X POST http://localhost:4000/qa/sessions \
+curl -s -X POST $SPECSYNC_URL/qa/sessions \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {
@@ -226,11 +285,11 @@ curl -s -X POST http://localhost:4000/qa/sessions \
 EOF
 
 # 2. Tells you the URL
-# → "Q&A ready at http://localhost:4000/qa/abc?token=xyz"
+# → "Q&A ready at https://specsync.yourteam.com/qa/abc?token=xyz"
 
 # 3. Polls until the team answers
 while true; do
-  RESP=$(curl -s "http://localhost:4000/qa/sessions/abc?token=xyz")
+  RESP=$(curl -s "$SPECSYNC_URL/qa/sessions/abc?token=xyz")
   # When status="completed", continue with the answer
   sleep 3
 done
