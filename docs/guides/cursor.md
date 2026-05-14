@@ -8,12 +8,12 @@
 ## Install
 
 ```bash
-npx @specsync/skill
+npx skills add hjgraca/specsync
 ```
 
-This creates `.cursor/skills/specsync/SKILL.md` in your project.
+This installs the specsync skill files into your agent's skill directory. Then tell your agent to run `/specsync-setup` to configure the server URL.
 
-Alternatively, you can add it as a Cursor rule by copying the content to `.cursor/rules/specsync.mdc`.
+Alternatively, you can add it as a Cursor rule by copying the content of `skills/specsync/SKILL.md` to `.cursor/rules/specsync.mdc`.
 
 ## Usage
 
