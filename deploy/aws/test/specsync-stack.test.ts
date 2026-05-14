@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it } from "vitest";
 import * as cdk from "aws-cdk-lib";
 import { Template, Match } from "aws-cdk-lib/assertions";
 import { SpecsyncStack } from "../lib/specsync-stack.js";
@@ -12,24 +12,46 @@ function createTemplate(): Template {
 }
 
 describe("SpecsyncStack", () => {
-  it("creates an App Runner service named specsync", () => {
+  it("creates a Lightsail container service named specsync", () => {
     const template = createTemplate();
 
-    template.hasResourceProperties("AWS::AppRunner::Service", {
+    template.hasResourceProperties("AWS::Lightsail::Container", {
       ServiceName: "specsync",
+    });
+  }, 15_000);
+
+  it("configures nano power with scale 1", () => {
+    const template = createTemplate();
+
+    template.hasResourceProperties("AWS::Lightsail::Container", {
+      Power: "nano",
+      Scale: 1,
     });
   });
 
-  it("configures port 4000", () => {
+  it("enables ECR image puller role for private registry access", () => {
     const template = createTemplate();
 
-    template.hasResourceProperties("AWS::AppRunner::Service", {
-      SourceConfiguration: {
-        ImageRepository: {
-          ImageConfiguration: {
-            Port: "4000",
-          },
+    template.hasResourceProperties("AWS::Lightsail::Container", {
+      PrivateRegistryAccess: {
+        EcrImagePullerRole: {
+          IsActive: true,
         },
+      },
+    });
+  });
+
+  it("deploys a container exposing port 4000 over HTTP", () => {
+    const template = createTemplate();
+
+    template.hasResourceProperties("AWS::Lightsail::Container", {
+      ContainerServiceDeployment: {
+        Containers: Match.arrayWith([
+          Match.objectLike({
+            ContainerName: "specsync-app",
+            Ports: [{ Port: "4000", Protocol: "HTTP" }],
+          }),
+        ]),
       },
     });
   });
@@ -37,77 +59,34 @@ describe("SpecsyncStack", () => {
   it("sets required environment variables", () => {
     const template = createTemplate();
 
-    template.hasResourceProperties("AWS::AppRunner::Service", {
-      SourceConfiguration: {
-        ImageRepository: {
-          ImageConfiguration: {
-            RuntimeEnvironmentVariables: Match.arrayWith([
-              { Name: "PORT", Value: "4000" },
-              { Name: "HOST", Value: "0.0.0.0" },
-              { Name: "REVIEW_TOOL_DB_PATH", Value: "/data/specsync.db" },
-            ]),
-          },
-        },
-      },
-    });
-  });
-
-  it("uses ECR as image repository type", () => {
-    const template = createTemplate();
-
-    template.hasResourceProperties("AWS::AppRunner::Service", {
-      SourceConfiguration: {
-        ImageRepository: {
-          ImageRepositoryType: "ECR",
-        },
-      },
-    });
-  });
-
-  it("configures 0.25 vCPU and 0.5 GB memory", () => {
-    const template = createTemplate();
-
-    template.hasResourceProperties("AWS::AppRunner::Service", {
-      InstanceConfiguration: {
-        Cpu: "0.25 vCPU",
-        Memory: "0.5 GB",
-      },
-    });
-  });
-
-  it("creates an IAM role for App Runner to pull from ECR", () => {
-    const template = createTemplate();
-
-    template.hasResourceProperties("AWS::IAM::Role", {
-      AssumeRolePolicyDocument: {
-        Statement: Match.arrayWith([
+    template.hasResourceProperties("AWS::Lightsail::Container", {
+      ContainerServiceDeployment: {
+        Containers: Match.arrayWith([
           Match.objectLike({
-            Action: "sts:AssumeRole",
-            Effect: "Allow",
-            Principal: {
-              Service: "build.apprunner.amazonaws.com",
-            },
+            Environment: Match.arrayWith([
+              { Variable: "PORT", Value: "4000" },
+              { Variable: "HOST", Value: "0.0.0.0" },
+              { Variable: "REVIEW_TOOL_DB_PATH", Value: "/data/specsync.db" },
+            ]),
           }),
         ]),
       },
     });
   });
 
-  it("grants ECR pull permissions to the access role", () => {
+  it("configures public endpoint on port 4000 with health check", () => {
     const template = createTemplate();
 
-    template.hasResourceProperties("AWS::IAM::Policy", {
-      PolicyDocument: {
-        Statement: Match.arrayWith([
-          Match.objectLike({
-            Action: Match.arrayWith([
-              "ecr:BatchCheckLayerAvailability",
-              "ecr:GetDownloadUrlForLayer",
-              "ecr:BatchGetImage",
-            ]),
-            Effect: "Allow",
+    template.hasResourceProperties("AWS::Lightsail::Container", {
+      ContainerServiceDeployment: {
+        PublicEndpoint: {
+          ContainerName: "specsync-app",
+          ContainerPort: 4000,
+          HealthCheckConfig: Match.objectLike({
+            Path: "/health",
+            SuccessCodes: "200-399",
           }),
-        ]),
+        },
       },
     });
   });
@@ -120,21 +99,9 @@ describe("SpecsyncStack", () => {
     });
   });
 
-  it("creates exactly one App Runner service", () => {
+  it("creates exactly one Lightsail container service", () => {
     const template = createTemplate();
 
-    template.resourceCountIs("AWS::AppRunner::Service", 1);
-  });
-
-  it("wires the access role ARN into the service auth config", () => {
-    const template = createTemplate();
-
-    template.hasResourceProperties("AWS::AppRunner::Service", {
-      SourceConfiguration: {
-        AuthenticationConfiguration: {
-          AccessRoleArn: Match.anyValue(),
-        },
-      },
-    });
+    template.resourceCountIs("AWS::Lightsail::Container", 1);
   });
 });
