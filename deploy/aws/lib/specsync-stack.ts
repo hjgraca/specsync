@@ -1,7 +1,6 @@
 import * as cdk from "aws-cdk-lib";
-import * as apprunner from "aws-cdk-lib/aws-apprunner";
+import * as lightsail from "aws-cdk-lib/aws-lightsail";
 import * as ecr_assets from "aws-cdk-lib/aws-ecr-assets";
-import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -19,38 +18,45 @@ export class SpecsyncStack extends cdk.Stack {
       exclude: ["deploy"],
     });
 
-    const accessRole = new iam.Role(this, "AccessRole", {
-      assumedBy: new iam.ServicePrincipal("build.apprunner.amazonaws.com"),
-    });
-    imageAsset.repository.grantPull(accessRole);
-
-    const service = new apprunner.CfnService(this, "Service", {
+    const containerService = new lightsail.CfnContainer(this, "Service", {
       serviceName: "specsync",
-      sourceConfiguration: {
-        authenticationConfiguration: {
-          accessRoleArn: accessRole.roleArn,
-        },
-        imageRepository: {
-          imageIdentifier: imageAsset.imageUri,
-          imageRepositoryType: "ECR",
-          imageConfiguration: {
-            port: "4000",
-            runtimeEnvironmentVariables: [
-              { name: "PORT", value: "4000" },
-              { name: "HOST", value: "0.0.0.0" },
-              { name: "REVIEW_TOOL_DB_PATH", value: "/data/specsync.db" },
-            ],
-          },
+      power: "nano",
+      scale: 1,
+      privateRegistryAccess: {
+        ecrImagePullerRole: {
+          isActive: true,
         },
       },
-      instanceConfiguration: {
-        cpu: "0.25 vCPU",
-        memory: "0.5 GB",
+      containerServiceDeployment: {
+        containers: [
+          {
+            containerName: "specsync-app",
+            image: imageAsset.imageUri,
+            ports: [{ port: "4000", protocol: "HTTP" }],
+            environment: [
+              { variable: "PORT", value: "4000" },
+              { variable: "HOST", value: "0.0.0.0" },
+              { variable: "REVIEW_TOOL_DB_PATH", value: "/data/specsync.db" },
+            ],
+          },
+        ],
+        publicEndpoint: {
+          containerName: "specsync-app",
+          containerPort: 4000,
+          healthCheckConfig: {
+            healthyThreshold: 2,
+            unhealthyThreshold: 3,
+            intervalSeconds: 30,
+            timeoutSeconds: 5,
+            path: "/health",
+            successCodes: "200-399",
+          },
+        },
       },
     });
 
     new cdk.CfnOutput(this, "Url", {
-      value: `https://${service.attrServiceUrl}`,
+      value: containerService.attrUrl,
       description: "Specsync URL",
     });
   }
