@@ -29,11 +29,10 @@ SpecsyncStack.Url = https://xxxxx.us-east-1.awsapprunner.com
 
 ## Configure your agents
 
-Re-run the skill installer and enter the deployed URL when prompted:
+Tell your agent to run `/specsync-setup` and enter the deployed URL:
 
-```bash
-npx @specsync/skill
-# When asked for the server URL, enter: https://xxxxx.us-east-1.awsapprunner.com
+```
+https://xxxxx.us-east-1.awsapprunner.com
 ```
 
 This saves the URL to `.specsync.json` in your project so all agents use it automatically.

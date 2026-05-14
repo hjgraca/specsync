@@ -65,10 +65,6 @@ jobs:
         working-directory: packages/server
         run: npm publish --provenance --access public
 
-      - name: Publish @specsync/skill
-        working-directory: packages/skill
-        run: npm publish --provenance --access public
-
   publish-docker:
     name: Push Docker image
     needs: test

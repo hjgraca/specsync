@@ -8,10 +8,10 @@
 ## Install
 
 ```bash
-npx @specsync/skill
+npx skills add hjgraca/specsync
 ```
 
-This creates `.claude/skills/specsync/SKILL.md` in your project.
+This installs the specsync skill files into `.claude/skills/specsync/`. Then run `/specsync-setup` in Claude Code to configure the server URL.
 
 ## Usage
 

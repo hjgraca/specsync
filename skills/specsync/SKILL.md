@@ -2,29 +2,27 @@
 name: specsync
 description: >
   Collaborative spec review and team Q&A. Routes all questions and specs to a shared
-  web UI — never ask decision questions in the CLI.
+  web UI — never ask decision questions in the chat.
 
   TRIGGER THIS SKILL when:
   - The user wants team input, questions answered, spec review, or approval
-  - The user asks Claude to interview them, ask them questions, or walk through decisions
-  - The task requires Claude to ask the user design/architecture/implementation questions
+  - The user asks the agent to interview them, ask them questions, or walk through decisions
+  - The task requires the agent to ask the user design/architecture/implementation questions
   - There are multi-stage or dependent questions where later decisions depend on earlier answers
   - The user says "interview me", "ask me about", "walk me through decisions", "resolve
     dependencies one by one", "question by question", "one at a time"
   - Phrases like "ask the team", "get team input", "what does the team think", "submit
     for review", "get approval", "multi-stage questions", or "dependent questions"
 
-  CRITICAL RULE: Any time Claude would otherwise use AskUserQuestion or plain text to
-  ask decision questions, design questions, or gather preferences — use this skill instead.
-  This includes when the user asks to be interviewed, quizzed, or walked through choices.
-allowed-tools:
-  - Bash
+  CRITICAL RULE: Any time the agent would otherwise ask decision questions, design
+  questions, or gather preferences in plain text — use this skill instead. This includes
+  when the user asks to be interviewed, quizzed, or walked through choices.
 ---
 
 # Specsync — Collaborative Spec Review
 
 Route all team questions and spec reviews through the specsync web UI. Never ask
-decision questions in the CLI — if you need input from humans, it goes through specsync.
+decision questions in the chat — if you need input from humans, it goes through specsync.
 
 ## Server URL Resolution
 
@@ -41,7 +39,8 @@ SPECSYNC_URL=${SPECSYNC_URL:-${REVIEW_TOOL_URL:-http://localhost:4000}}
 
 Use `$SPECSYNC_URL` as the base URL for all API calls below.
 
-If the server is unreachable, tell the user to either configure `.specsync.json` or run: `npx @specsync/server`
+If `.specsync.json` does not exist, tell the user to run `/specsync-setup` to configure it.
+If the server is unreachable, tell the user to run: `npx @specsync/server`
 
 ## Planning questions: independent vs dependent
 
@@ -66,7 +65,7 @@ This avoids asking hypothetical questions ("if you pick X, then would you want Y
 
 ## Creating a Q&A session
 
-Use the Bash tool to create a session. For each question, include your recommended answer with reasoning.
+Create a session via shell. For each question, include your recommended answer with reasoning.
 
 ```bash
 curl -s -X POST $SPECSYNC_URL/qa/sessions \
@@ -145,7 +144,7 @@ Only create a new session for a completely unrelated topic.
 
 ## When you have a spec/plan ready for team review
 
-Use the Bash tool to publish the spec:
+Publish the spec via shell:
 
 ```bash
 curl -s -X POST $SPECSYNC_URL/documents \
@@ -205,17 +204,17 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-share-token: {accessToken}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
-{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:claude", "text": "Your reply"}
+{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:agent", "text": "Your reply"}
 EOF
 ```
 
 ## Rules
 
 - For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
-- Generate a unique codename for yourself: `ai:claude-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
+- Generate a unique codename for yourself: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
 - Never call `document.approve` — only humans approve.
 - Do NOT open the browser — only print/tell the user the URL. They will navigate themselves.
 - If the server returns a connection error, tell the user to start it.
-- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask "should I proceed?", "want me to do X?", or any other confirmation question in the CLI.
-- Never use AskUserQuestion or plain text questions to gather decisions. ALL questions that need input go through specsync Q&A sessions.
-- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the CLI.
+- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask "should I proceed?", "want me to do X?", or any other confirmation question in the chat.
+- Never ask decision questions in the chat. ALL questions that need input go through specsync Q&A sessions.
+- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.

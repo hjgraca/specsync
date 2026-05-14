@@ -40,8 +40,10 @@ Make sure all tests pass before submitting a PR.
 ```
 packages/
   server/       @specsync/server — Express API, WebSocket, database, React frontend
-  skill/        @specsync/skill — Interactive TUI installer + skill files per agent
   sdk/          @specsync/sdk — TypeScript client, bridge, and tool functions
+skills/
+  specsync/     Main skill — Q&A and spec review (installed via npx skills add)
+  specsync-setup/  Setup skill — creates .specsync.json
 tests/
   e2e/          Playwright end-to-end tests
 ```
@@ -53,12 +55,9 @@ tests/
 - Follow the patterns you see in existing files. If you're unsure, look at a nearby file for guidance.
 - Keep files focused. Prefer small, single-purpose modules.
 
-## Adding a New Agent Skill
+## Editing the Skill
 
-1. Copy `packages/skill/skills/universal/` to `packages/skill/skills/<your-agent>/`.
-2. Adapt `SKILL.md` for your agent's syntax and conventions.
-3. Add the agent target to the `TARGETS` array in `packages/skill/src/index.ts`.
-4. Add your agent to the skills list in the README if applicable.
+The skill files live in `skills/specsync/SKILL.md` and `skills/specsync-setup/SKILL.md`. There is a single universal skill that works across all agents — no per-agent variants needed. The skill is installed via `npx skills add hjgraca/specsync` which handles placing it in the right directory for each agent.
 
 ## Pull Request Process
 

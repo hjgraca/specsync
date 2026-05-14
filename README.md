@@ -22,8 +22,8 @@ Collaborative spec review for AI coding agents. Your agent asks questions and su
 # 1. Start the server
 npx @specsync/server
 
-# 2. Install skills for your agents (interactive)
-npx @specsync/skill
+# 2. Install skills for your agents
+npx skills add hjgraca/specsync
 ```
 
 Or run the server with Docker:
@@ -36,54 +36,48 @@ Then tell your agent: **"ask the team"** or **"submit for review"**
 
 ## Set Up Your Agent
 
-### Option A: Run the installer yourself
+### Option A: Install with the skills CLI
 
-The interactive installer detects your agents and installs the skill files:
-
-```bash
-npx @specsync/skill
-```
-
-You can also run it in non-interactive mode:
+Uses the [Agent Skills](https://github.com/vercel-labs/skills) CLI to install for all your detected agents (Claude Code, Cursor, Copilot, Kiro, OpenCode, and more):
 
 ```bash
-# Install for a single agent
-npx @specsync/skill --agent opencode
-
-# Install for all supported agents
-npx @specsync/skill --all
-
-# With a custom server URL
-npx @specsync/skill --agent claude --server-url https://specsync.myteam.com
+npx skills add hjgraca/specsync
 ```
+
+The CLI will detect your installed agents, let you pick which skills to install (`specsync` and `specsync-setup`), and place the skill files in the right directories.
+
+After installation, tell your agent to run `/specsync-setup` to configure the server URL and create `.specsync.json`.
 
 ### Option B: Paste this into your agent
 
-If you want your agent to set itself up, start the server first (`npx @specsync/server`), then paste this into your agent's chat. Replace `<agent>` with your agent type (`claude`, `cursor`, `opencode`, `copilot`, `kiro`, `pi`):
+Start the server first (`npx @specsync/server`), then paste this into your agent's chat:
 
 ```
 Set up specsync for collaborative spec review.
 
-1. Create the skill directory:
-   mkdir -p .<agent>/skills/specsync
+1. Download the skill file:
+   curl -s https://raw.githubusercontent.com/hjgraca/specsync/main/skills/specsync/SKILL.md \
+     -o .claude/skills/specsync/SKILL.md --create-dirs
 
-2. Download the skill file from:
-   https://raw.githubusercontent.com/hjgraca/specsync/main/packages/skill/skills/<agent>/SKILL.md
-   Save it to .<agent>/skills/specsync/SKILL.md
+2. Download the setup skill:
+   curl -s https://raw.githubusercontent.com/hjgraca/specsync/main/skills/specsync-setup/SKILL.md \
+     -o .claude/skills/specsync-setup/SKILL.md --create-dirs
 
-3. Write .specsync.json to the project root with this content:
+3. Write .specsync.json to the project root:
    {"serverUrl": "http://localhost:4000"}
 
-4. Restart your agent session so the new skill is discovered.
+4. Restart your agent session so the new skills are discovered.
 ```
+
+Replace `.claude` with your agent's skill directory (`.cursor`, `.agents`, `.kiro`, etc.).
 
 ## Packages
 
 | Package | Purpose | Install |
 |---------|---------|---------|
 | [`@specsync/server`](packages/server) | Run the specsync server | `npx @specsync/server` |
-| [`@specsync/skill`](packages/skill) | Interactive skill installer for AI agents | `npx @specsync/skill` |
 | [`@specsync/sdk`](packages/sdk) | TypeScript SDK for programmatic integration | `npm install @specsync/sdk` |
+| [Skills](skills/) | Agent skill files (installed via `npx skills add`) | `npx skills add hjgraca/specsync` |
 
 ## How it works
 
@@ -138,7 +132,7 @@ Run a shared Specsync server for your team. Each guide gets you from zero to a l
 | Railway | Railway | [docs/guides/deploy-railway.md](docs/guides/deploy-railway.md) |
 | Fly.io | Fly Machines | [docs/guides/deploy-flyio.md](docs/guides/deploy-flyio.md) |
 
-Then re-run `npx @specsync/skill` and enter the deployed URL when prompted. This saves it to `.specsync.json` so all agents use it automatically.
+Then tell your agent to run `/specsync-setup` and enter the deployed URL. This saves it to `.specsync.json` so all agents use it automatically.
 
 ## Integration Guides
 

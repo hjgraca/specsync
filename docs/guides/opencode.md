@@ -8,10 +8,10 @@
 ## Install
 
 ```bash
-npx @specsync/skill
+npx skills add hjgraca/specsync
 ```
 
-This creates `.opencode/skills/specsync/SKILL.md` in your project.
+This installs the specsync skill files into your agent's skill directory. Then tell your agent to run `/specsync-setup` to configure the server URL.
 
 OpenCode also reads skills from `.claude/skills/` and `.agents/skills/`, so if you've already installed for Claude Code or Copilot, it will work automatically.
 

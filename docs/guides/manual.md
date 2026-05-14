@@ -7,15 +7,11 @@
 
 ## Install
 
-Copy the universal skill file to your agent's skill directory:
-
 ```bash
-# Option 1: Use the installer with a generic target
-npx @specsync/skill
-
-# Option 2: Copy manually
-cp packages/skill/skills/universal/SKILL.md <your-agent-skill-directory>/specsync/SKILL.md
+npx skills add hjgraca/specsync
 ```
+
+The CLI will detect your installed agents and place the skill files in the right directories. Then tell your agent to run `/specsync-setup` to configure the server URL.
 
 Common skill directories by agent:
 - `.agents/skills/specsync/` — Agent Skills standard (Copilot, Codex)
@@ -24,7 +20,7 @@ Common skill directories by agent:
 - `.cursor/skills/specsync/` — Cursor
 - `.pi/skills/specsync/` — Pi
 
-If your agent doesn't support skills, add the content of `skills/universal/SKILL.md` to your agent's system prompt or rules file.
+If your agent doesn't support skills, add the content of `skills/specsync/SKILL.md` to your agent's system prompt or rules file.
 
 ## The API (for building custom integrations)
 
