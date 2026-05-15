@@ -74,6 +74,7 @@ export function PresenceBar({ slug, token, participantId, participantName }: Pro
       ``,
       `5. Signal your presence:`,
       `   POST ${baseUrl}/documents/${slug}/presence`,
+      `   Header: x-share-token: ${token}`,
       `   Body: {"id":"ai:<your-agent-name>","name":"<Display Name>","role":"commenter"}`,
       ``,
       `## Identity`,
