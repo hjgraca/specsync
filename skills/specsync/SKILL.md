@@ -4,19 +4,16 @@ description: >
   Collaborative spec review and team Q&A. Routes all questions and specs to a shared
   web UI — never ask decision questions in the chat.
 
-  TRIGGER THIS SKILL when:
-  - The user wants team input, questions answered, spec review, or approval
-  - The user asks the agent to interview them, ask them questions, or walk through decisions
-  - The task requires the agent to ask the user design/architecture/implementation questions
-  - There are multi-stage or dependent questions where later decisions depend on earlier answers
-  - The user says "interview me", "ask me about", "walk me through decisions", "resolve
-    dependencies one by one", "question by question", "one at a time"
-  - Phrases like "ask the team", "get team input", "what does the team think", "submit
-    for review", "get approval", "multi-stage questions", or "dependent questions"
+  TRIGGER when:
+  - User wants team input, questions answered, spec review, or approval
+  - User asks to be interviewed, asked questions, or walked through decisions
+  - Task requires asking design/architecture/implementation questions
+  - Multi-stage or dependent questions where later answers depend on earlier ones
+  - Phrases: "interview me", "ask me about", "walk me through decisions",
+    "ask the team", "get team input", "submit for review", "get approval"
 
-  CRITICAL RULE: Any time the agent would otherwise ask decision questions, design
-  questions, or gather preferences in plain text — use this skill instead. This includes
-  when the user asks to be interviewed, quizzed, or walked through choices.
+  CRITICAL: Any time the agent would ask decision or design questions in plain
+  text — use this skill instead, including interviews and walkthroughs.
 ---
 
 # Specsync — Collaborative Spec Review
