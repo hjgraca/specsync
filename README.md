@@ -2,6 +2,7 @@
 
 [![Tests](https://github.com/hjgraca/specsync/actions/workflows/test.yml/badge.svg)](https://github.com/hjgraca/specsync/actions/workflows/test.yml)
 [![npm](https://img.shields.io/npm/v/@specsync/server)](https://www.npmjs.com/package/@specsync/server)
+[![skills.sh](https://skills.sh/b/hjgraca/specsync)](https://skills.sh/hjgraca/specsync)
 
 Collaborative spec review and team Q&A for AI coding agents.
 
