@@ -7,6 +7,7 @@ const app = createApp();
 describe("event polling routes", () => {
   let slug: string;
   let accessToken: string;
+  let joinCode: string;
 
   beforeAll(async () => {
     const res = await request(app)
@@ -14,20 +15,24 @@ describe("event polling routes", () => {
       .send({ title: "Events Test", markdown: "# Events\n\nTest content." });
     slug = res.body.slug;
     accessToken = res.body.accessToken;
+    joinCode = res.body.joinCode;
 
     await request(app)
       .post(`/documents/${slug}/ops`)
       .set("x-share-token", accessToken)
+      .set("x-join-code", joinCode)
       .send({ type: "comment.add", by: "human:alice", quote: "Test content", text: "Comment 1" });
 
     await request(app)
       .post(`/documents/${slug}/ops`)
       .set("x-share-token", accessToken)
+      .set("x-join-code", joinCode)
       .send({ type: "comment.add", by: "ai:reviewer", quote: "Events", text: "AI comment" });
 
     await request(app)
       .post(`/documents/${slug}/ops`)
       .set("x-share-token", accessToken)
+      .set("x-join-code", joinCode)
       .send({ type: "comment.add", by: "human:bob", quote: "Test content", text: "Comment 3" });
   });
 
@@ -36,6 +41,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(3);
@@ -46,13 +52,15 @@ describe("event polling routes", () => {
     it("returns events after since parameter", async () => {
       const all = await request(app)
         .get(`/documents/${slug}/events/pending`)
-        .set("x-share-token", accessToken);
+        .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode);
 
       const firstId = all.body.events[0].id;
 
       const res = await request(app)
         .get(`/documents/${slug}/events/pending?since=${firstId}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(2);
@@ -63,6 +71,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending?exclude_by=ai:*`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(2);
@@ -73,6 +82,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending?since=999999`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.events).toEqual([]);
@@ -89,13 +99,15 @@ describe("event polling routes", () => {
     it("acknowledges last processed event", async () => {
       const all = await request(app)
         .get(`/documents/${slug}/events/pending`)
-        .set("x-share-token", accessToken);
+        .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode);
 
       const lastId = all.body.events[all.body.events.length - 1].id;
 
       const res = await request(app)
         .post(`/documents/${slug}/events/ack`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ agentId: "ai:test-agent", lastEventId: lastId })
         .expect(200);
 
@@ -107,6 +119,7 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${slug}/events/ack`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ agentId: "ai:test" })
         .expect(400);
     });
@@ -115,6 +128,7 @@ describe("event polling routes", () => {
   describe("events recorded on comment operations", () => {
     let evSlug: string;
     let evToken: string;
+    let evCode: string;
 
     beforeAll(async () => {
       const doc = await request(app)
@@ -122,18 +136,21 @@ describe("event polling routes", () => {
         .send({ title: "Event Recording", markdown: "# Event Recording\n\nEvent content here." });
       evSlug = doc.body.slug;
       evToken = doc.body.accessToken;
+      evCode = doc.body.joinCode;
     });
 
     it("records a comment.added event when a comment is created", async () => {
       await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "comment.add", by: "human:eve", quote: "Event content", text: "New comment" })
         .expect(201);
 
       const events = await request(app)
         .get(`/documents/${evSlug}/events/pending`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .expect(200);
 
       expect(events.body.events.length).toBeGreaterThanOrEqual(1);
@@ -147,6 +164,7 @@ describe("event polling routes", () => {
       const comment = await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "comment.add", by: "human:dan", quote: "Event content here", text: "Thread start" });
 
       const markId = comment.body.mark.id;
@@ -154,12 +172,14 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "comment.reply", markId, by: "ai:helper", text: "Thread reply" })
         .expect(200);
 
       const events = await request(app)
         .get(`/documents/${evSlug}/events/pending`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .expect(200);
 
       const replyEvent = events.body.events.find((e: any) => e.type === "comment.replied");
@@ -172,6 +192,7 @@ describe("event polling routes", () => {
       const comment = await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "comment.add", by: "human:fay", quote: "Event content", text: "Will resolve" });
 
       const markId = comment.body.mark.id;
@@ -179,12 +200,14 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "comment.resolve", markId, by: "human:fay" })
         .expect(200);
 
       const events = await request(app)
         .get(`/documents/${evSlug}/events/pending`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .expect(200);
 
       const resolvedEvent = events.body.events.find((e: any) => e.type === "comment.resolved");
@@ -196,12 +219,14 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${evSlug}/ops`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .send({ type: "document.approve", by: "human:approver" })
         .expect(200);
 
       const events = await request(app)
         .get(`/documents/${evSlug}/events/pending`)
         .set("x-share-token", evToken)
+        .set("x-join-code", evCode)
         .expect(200);
 
       const approvedEvent = events.body.events.find((e: any) => e.type === "document.approved");
@@ -217,6 +242,7 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({
           type: "document.request_changes",
           by: "human:pm",
@@ -227,6 +253,7 @@ describe("event polling routes", () => {
       const events = await request(app)
         .get(`/documents/${doc.body.slug}/events/pending`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .expect(200);
 
       const changesEvent = events.body.events.find(
@@ -240,6 +267,7 @@ describe("event polling routes", () => {
   describe("exclude_by filtering — edge cases", () => {
     let filtSlug: string;
     let filtToken: string;
+    let filtCode: string;
 
     beforeAll(async () => {
       const doc = await request(app)
@@ -247,26 +275,31 @@ describe("event polling routes", () => {
         .send({ title: "Filter Test", markdown: "# Filter\n\nFilter content." });
       filtSlug = doc.body.slug;
       filtToken = doc.body.accessToken;
+      filtCode = doc.body.joinCode;
 
       // Create events from different actor types
       await request(app)
         .post(`/documents/${filtSlug}/ops`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .send({ type: "comment.add", by: "human:alice", quote: "Filter content", text: "Human 1" });
 
       await request(app)
         .post(`/documents/${filtSlug}/ops`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .send({ type: "comment.add", by: "ai:reviewer", quote: "Filter", text: "AI 1" });
 
       await request(app)
         .post(`/documents/${filtSlug}/ops`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .send({ type: "comment.add", by: "ai:pm-agent", quote: "Filter content", text: "AI 2" });
 
       await request(app)
         .post(`/documents/${filtSlug}/ops`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .send({ type: "comment.add", by: "human:bob", quote: "Filter", text: "Human 2" });
     });
 
@@ -274,6 +307,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${filtSlug}/events/pending?exclude_by=ai:*`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(2);
@@ -284,6 +318,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${filtSlug}/events/pending?exclude_by=human:*`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(2);
@@ -294,6 +329,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${filtSlug}/events/pending?exclude_by=ai:reviewer`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(3);
@@ -304,6 +340,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${filtSlug}/events/pending?exclude_by=system:*`)
         .set("x-share-token", filtToken)
+        .set("x-join-code", filtCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(4);
@@ -313,6 +350,7 @@ describe("event polling routes", () => {
   describe("since parameter — edge cases", () => {
     let sinceSlug: string;
     let sinceToken: string;
+    let sinceCode: string;
 
     beforeAll(async () => {
       const doc = await request(app)
@@ -320,27 +358,32 @@ describe("event polling routes", () => {
         .send({ title: "Since Test", markdown: "# Since\n\nSince content." });
       sinceSlug = doc.body.slug;
       sinceToken = doc.body.accessToken;
+      sinceCode = doc.body.joinCode;
 
       await request(app)
         .post(`/documents/${sinceSlug}/ops`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .send({ type: "comment.add", by: "human:alice", quote: "Since content", text: "First" });
 
       await request(app)
         .post(`/documents/${sinceSlug}/ops`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .send({ type: "comment.add", by: "human:bob", quote: "Since", text: "Second" });
 
       await request(app)
         .post(`/documents/${sinceSlug}/ops`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .send({ type: "comment.add", by: "human:carol", quote: "Since content", text: "Third" });
     });
 
     it("since returns only events after the given ID", async () => {
       const all = await request(app)
         .get(`/documents/${sinceSlug}/events/pending`)
-        .set("x-share-token", sinceToken);
+        .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode);
 
       expect(all.body.events.length).toBe(3);
 
@@ -348,6 +391,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${sinceSlug}/events/pending?since=${secondId}`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(1);
@@ -357,12 +401,14 @@ describe("event polling routes", () => {
     it("since with the last event ID returns empty array", async () => {
       const all = await request(app)
         .get(`/documents/${sinceSlug}/events/pending`)
-        .set("x-share-token", sinceToken);
+        .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode);
 
       const lastId = all.body.events[all.body.events.length - 1].id;
       const res = await request(app)
         .get(`/documents/${sinceSlug}/events/pending?since=${lastId}`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .expect(200);
 
       expect(res.body.events).toEqual([]);
@@ -372,6 +418,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${sinceSlug}/events/pending?since=0`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .expect(200);
 
       expect(res.body.events.length).toBe(3);
@@ -382,11 +429,13 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${sinceSlug}/ops`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .send({ type: "comment.add", by: "ai:bot", quote: "Since content", text: "AI event" });
 
       const all = await request(app)
         .get(`/documents/${sinceSlug}/events/pending`)
-        .set("x-share-token", sinceToken);
+        .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode);
 
       expect(all.body.events.length).toBe(4);
 
@@ -394,6 +443,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${sinceSlug}/events/pending?since=${firstId}&exclude_by=ai:*`)
         .set("x-share-token", sinceToken)
+        .set("x-join-code", sinceCode)
         .expect(200);
 
       // Should exclude AI events and only return events after firstId
@@ -424,6 +474,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending`)
         .set("x-share-token", otherDoc.body.accessToken)
+        .set("x-join-code", otherDoc.body.joinCode)
         .expect(403);
 
       expect(res.body.code).toBe("SLUG_MISMATCH");
@@ -435,6 +486,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       for (const event of res.body.events) {
@@ -451,6 +503,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/events/pending`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       for (let i = 1; i < res.body.events.length; i++) {
@@ -464,6 +517,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/events/ack`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ lastEventId: 1 })
         .expect(400);
 
@@ -473,7 +527,8 @@ describe("event polling routes", () => {
     it("upserts ack for same agentId (updates lastEventId)", async () => {
       const all = await request(app)
         .get(`/documents/${slug}/events/pending`)
-        .set("x-share-token", accessToken);
+        .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode);
 
       const firstId = all.body.events[0].id;
       const lastId = all.body.events[all.body.events.length - 1].id;
@@ -482,6 +537,7 @@ describe("event polling routes", () => {
       await request(app)
         .post(`/documents/${slug}/events/ack`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ agentId: "ai:upsert-agent", lastEventId: firstId })
         .expect(200);
 
@@ -489,6 +545,7 @@ describe("event polling routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/events/ack`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ agentId: "ai:upsert-agent", lastEventId: lastId })
         .expect(200);
 

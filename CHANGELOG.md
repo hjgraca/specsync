@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+### Added
+
+- **Join codes for review documents** — `POST /documents` now returns a 6-character `joinCode`. Reviewers enter their name and this code in the browser to open a document; agents send it as `x-join-code` (or `?code=`) on every document request. A valid share token without the matching code now returns `403 INVALID_JOIN_CODE`. The join code is a second factor so a leaked URL alone cannot grant access.
+- **Agent suggestions documented** — the copy-bridge snippet and skill now cover `suggestion.add` (propose replacement text), which the server already supported.
+
+### Changed
+
+- **Human-chosen names replace auto-codenames** — people type their own name when they join a review or Q&A (saved in the browser and reused). Agents still self-name with `ai:<agent>-<adjective>-<noun>`.
+- **SDK** (`@specsync/sdk`) — `getDocumentState`, `postOp`, `pollEvents`, `updateDocument`, and the review bridge accept an optional join code.
+- **Docs** — corrected the AWS deploy guide (Lightsail Container Service, not App Runner), documented the access model end to end, and added the join code to all examples.
+
 ## 0.1.14 (2026-05-13)
 
 ## What's Changed

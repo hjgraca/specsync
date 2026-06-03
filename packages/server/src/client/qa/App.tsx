@@ -11,7 +11,8 @@ export function App() {
 
   const sessionId = window.location.pathname.split("/qa/")[1];
   const token = new URLSearchParams(window.location.search).get("token") || "";
-  const participant = useParticipant(sessionId);
+  const { participant, setName } = useParticipant();
+  const [nameDraft, setNameDraft] = useState("");
 
   useEffect(() => {
     if (!sessionId) {
@@ -57,6 +58,37 @@ export function App() {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>
         <h1 style={{ color: "#e63946" }}>{error}</h1>
+      </div>
+    );
+  }
+
+  if (!participant.name) {
+    return (
+      <div style={{ maxWidth: "360px", margin: "4rem auto", padding: "0 1rem" }}>
+        <h1 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "0.5rem" }}>What's your name?</h1>
+        <p style={{ color: "#666", fontSize: "0.85rem", marginBottom: "1rem" }}>
+          Shown to the team alongside your answers.
+        </p>
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (nameDraft.trim()) setName(nameDraft); }}
+          style={{ display: "flex", gap: "0.5rem" }}
+        >
+          <input
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            maxLength={50}
+            autoFocus
+            placeholder="e.g. Alex Rivera"
+            style={{ flex: 1, padding: "0.5rem 0.6rem", borderRadius: "6px", border: "1px solid #d1d5db", fontSize: "0.85rem" }}
+          />
+          <button
+            type="submit"
+            disabled={!nameDraft.trim()}
+            style={{ padding: "0.5rem 1rem", borderRadius: "6px", border: "none", background: nameDraft.trim() ? "#3b82f6" : "#cbd5e1", color: "#fff", fontSize: "0.85rem", cursor: nameDraft.trim() ? "pointer" : "not-allowed" }}
+          >
+            Continue
+          </button>
+        </form>
       </div>
     );
   }

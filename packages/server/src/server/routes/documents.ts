@@ -1,5 +1,5 @@
 import { Router, type Router as RouterType } from "express";
-import { getDb, generateSlug, generateToken } from "../db.js";
+import { getDb, generateSlug, generateToken, generateJoinCode } from "../db.js";
 import { requireAuth, requireOwner, type AuthenticatedRequest } from "../auth.js";
 import type { CreateDocumentRequest, CreateDocumentResponse, DocumentState } from "../../shared/types.js";
 
@@ -30,6 +30,7 @@ router.post("/documents", (req, res) => {
   const slug = generateSlug();
   const ownerSecret = generateToken();
   const accessToken = generateToken();
+  const joinCode = generateJoinCode();
 
   const expiresAt = new Date(
     Date.now() + DEFAULT_TTL_DAYS * 24 * 60 * 60 * 1000,
@@ -38,9 +39,9 @@ router.post("/documents", (req, res) => {
   const db = getDb();
 
   db.prepare(
-    `INSERT INTO documents (slug, title, markdown, owner_secret, callback_url, callback_session_id, callback_id, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-  ).run(slug, docTitle, content, ownerSecret, callbackUrl || null, callbackSessionId || null, callbackId || null, expiresAt);
+    `INSERT INTO documents (slug, title, markdown, owner_secret, join_code, callback_url, callback_session_id, callback_id, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(slug, docTitle, content, ownerSecret, joinCode, callbackUrl || null, callbackSessionId || null, callbackId || null, expiresAt);
 
   db.prepare(
     `INSERT INTO document_tokens (token, slug, role) VALUES (?, ?, ?)`,
@@ -58,6 +59,7 @@ router.post("/documents", (req, res) => {
     bridgeUrl: `${baseUrl}/documents/${slug}`,
     accessToken,
     ownerSecret,
+    joinCode,
   };
 
   res.status(201).json(response);

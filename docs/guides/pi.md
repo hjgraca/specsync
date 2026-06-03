@@ -35,7 +35,7 @@ Tell Pi:
 
 Pi will:
 1. Publish the spec to specsync
-2. Print the review URL
+2. Print the review URL and a join code for your team
 3. Wait for approval or change requests
 4. Continue or revise based on feedback
 
@@ -54,6 +54,10 @@ env:
   REVIEW_TOOL_URL: https://specsync.yourteam.com
 ```
 
+## Joining a review
+
+When you submit a document for review, the agent prints a URL **and a 6-character join code**. Share both. Each reviewer opens the link, enters their name and the code once (the browser remembers them), and starts commenting. Q&A sessions do not need a code — just the link. See [How access works](../../README.md#how-access-works).
+
 ## Troubleshooting
 
 | Issue | Solution |
@@ -61,3 +65,4 @@ env:
 | "Connection refused" | Start the server: `npx @specsync/server` |
 | Skill not triggering | Say "ask the team" or "submit for review" explicitly |
 | Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |
+| Reviewer stuck on the join screen | Give them the 6-character join code the agent printed, not just the URL |

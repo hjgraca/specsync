@@ -2,6 +2,28 @@
 
 All endpoints accept and return JSON. The server runs at `http://localhost:4000` by default.
 
+## Authentication at a glance
+
+Specsync has no accounts. Two kinds of resources are protected differently:
+
+| Resource | Required credentials | How to send them |
+|----------|---------------------|------------------|
+| **Q&A sessions** (`/qa/...`) | Session token | `?token=` query param, or `x-share-token` header |
+| **Review documents** (`/documents/...`) | Share token **and** join code | `x-share-token` + `x-join-code` headers, or `?token=&code=` |
+
+The create endpoints (`POST /qa/sessions`, `POST /documents`) need no
+credentials — they mint the secrets and return them. Every other endpoint
+requires the credentials above.
+
+For documents specifically, a valid share token **without** the matching join
+code returns `403 INVALID_JOIN_CODE`. Both are returned by `POST /documents`
+(`accessToken` and `joinCode`). Humans type the join code in the browser when
+they open the document; agents send it as a header on every request. See
+[Document authentication](#document-authentication) for details.
+
+> Documents created before join codes were introduced have an empty code and
+> remain accessible with the share token alone, for backward compatibility.
+
 ## Q&A Endpoints
 
 ### POST /qa/sessions
@@ -152,13 +174,23 @@ Create a new review document.
   "docUrl": "http://localhost:4000/review/d4972aac?token=lZWeGcG-...",
   "bridgeUrl": "http://localhost:4000/documents/d4972aac",
   "accessToken": "lZWeGcG-ZClSCVNRNJKzbijJ9VGsVm9eLaku87KD-M8",
-  "ownerSecret": "bBGBRvsVwU32pCDGCkchbzZaoTcgeLYiDXcf8-2N9ls"
+  "ownerSecret": "bBGBRvsVwU32pCDGCkchbzZaoTcgeLYiDXcf8-2N9ls",
+  "joinCode": "a1b2c3"
 }
 ```
 
 - `docUrl` — share this with your team
 - `accessToken` — use in `x-share-token` header for API calls
+- `joinCode` — 6-character second factor; required on every document request via
+  `x-join-code` header (or `?code=`). Humans type it in the browser to join.
 - `bridgeUrl` — base URL for agent bridge operations
+
+### Document authentication
+
+Every `/documents/:slug/*` endpoint requires **both** the share token and the
+join code. A valid token without the matching code returns `403
+INVALID_JOIN_CODE`. Provide the token via `x-share-token` / `Authorization:
+Bearer` / `?token=` and the code via `x-join-code` / `?code=`.
 
 ---
 
@@ -166,7 +198,7 @@ Create a new review document.
 
 Get the current document state including all marks (comments, suggestions).
 
-**Headers:** `x-share-token: {accessToken}`
+**Headers:** `x-share-token: {accessToken}`, `x-join-code: {joinCode}`
 
 **Response:**
 
@@ -199,7 +231,7 @@ Get the current document state including all marks (comments, suggestions).
 
 Update the document content. The URL stays the same. Comments are preserved.
 
-**Headers:** `x-share-token: {accessToken}`
+**Headers:** `x-share-token: {accessToken}`, `x-join-code: {joinCode}`
 
 **Request:**
 
@@ -224,7 +256,7 @@ Update the document content. The URL stays the same. Comments are preserved.
 
 Perform an operation on the document (comment, reply, approve, etc.).
 
-**Headers:** `x-share-token: {accessToken}`
+**Headers:** `x-share-token: {accessToken}`, `x-join-code: {joinCode}`
 
 #### Add a comment
 
@@ -290,7 +322,7 @@ Perform an operation on the document (comment, reply, approve, etc.).
 
 Poll for decision events. Returns events since the given index.
 
-**Headers:** `x-share-token: {accessToken}`
+**Headers:** `x-share-token: {accessToken}`, `x-join-code: {joinCode}`
 
 **Query params:**
 - `since` — event index to start from (use `0` for all)
@@ -323,7 +355,7 @@ Possible event types:
 
 Register or heartbeat presence on a document.
 
-**Headers:** `x-share-token: {accessToken}`
+**Headers:** `x-share-token: {accessToken}`, `x-join-code: {joinCode}`
 
 **Request:**
 
@@ -362,7 +394,10 @@ All errors return JSON:
 ```
 
 Common error codes:
-- `NO_TOKEN` — token query param missing
-- `INVALID_TOKEN` — token doesn't match the session
-- `NOT_FOUND` — session or document doesn't exist
-- `RATE_LIMITED` — too many requests (429)
+- `NO_TOKEN` — token query param missing (Q&A endpoints)
+- `INVALID_TOKEN` — token doesn't match the session (Q&A endpoints)
+- `NOT_FOUND` (404) — session or document doesn't exist, or the share token is missing/invalid on a document endpoint
+- `INVALID_JOIN_CODE` (403) — the share token was valid but the join code was missing or wrong. Add the `x-join-code` header (or `?code=`) from the create-document response.
+- `SLUG_MISMATCH` (403) — the token is valid but belongs to a different document than the one in the URL
+- `MISSING_FIELDS` / `VALIDATION_ERROR` (400) — a required field is absent or fails validation (e.g. name too long)
+- `RATE_LIMITED` (429) — too many requests

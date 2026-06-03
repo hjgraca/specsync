@@ -13,6 +13,17 @@ export class ReviewToolClient {
     this.baseUrl = baseUrl || process.env.REVIEW_TOOL_URL || "http://localhost:4000";
   }
 
+  /**
+   * Auth headers for document requests: the share token plus the join code
+   * (the required second factor). `code` is optional so callers targeting
+   * documents created before join codes existed keep working.
+   */
+  private docHeaders(token: string, code?: string, extra?: Record<string, string>): Record<string, string> {
+    const headers: Record<string, string> = { "x-share-token": token, ...extra };
+    if (code) headers["x-join-code"] = code;
+    return headers;
+  }
+
   async createDocument(title: string, markdown: string): Promise<CreateDocumentResponse> {
     const res = await fetch(`${this.baseUrl}/documents`, {
       method: "POST",
@@ -28,16 +39,13 @@ export class ReviewToolClient {
     return res.json();
   }
 
-  async updateDocument(slug: string, token: string, markdown: string, title?: string): Promise<void> {
+  async updateDocument(slug: string, token: string, markdown: string, title?: string, code?: string): Promise<void> {
     const body: Record<string, string> = { markdown };
     if (title) body.title = title;
 
     const res = await fetch(`${this.baseUrl}/documents/${slug}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-share-token": token,
-      },
+      headers: this.docHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify(body),
     });
 
@@ -47,9 +55,9 @@ export class ReviewToolClient {
     }
   }
 
-  async getDocumentState(slug: string, token: string): Promise<DocumentState> {
+  async getDocumentState(slug: string, token: string, code?: string): Promise<DocumentState> {
     const res = await fetch(`${this.baseUrl}/documents/${slug}/state`, {
-      headers: { "x-share-token": token },
+      headers: this.docHeaders(token, code),
     });
 
     if (!res.ok) {
@@ -60,13 +68,10 @@ export class ReviewToolClient {
     return res.json();
   }
 
-  async postOp(slug: string, token: string, op: Record<string, unknown>): Promise<unknown> {
+  async postOp(slug: string, token: string, op: Record<string, unknown>, code?: string): Promise<unknown> {
     const res = await fetch(`${this.baseUrl}/documents/${slug}/ops`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-share-token": token,
-      },
+      headers: this.docHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify(op),
     });
 
@@ -83,6 +88,7 @@ export class ReviewToolClient {
     token: string,
     since: number = 0,
     excludeBy?: string,
+    code?: string,
   ): Promise<DocumentEvent[]> {
     let url = `${this.baseUrl}/documents/${slug}/events/pending?since=${since}`;
     if (excludeBy) {
@@ -90,7 +96,7 @@ export class ReviewToolClient {
     }
 
     const res = await fetch(url, {
-      headers: { "x-share-token": token },
+      headers: this.docHeaders(token, code),
     });
 
     if (!res.ok) {

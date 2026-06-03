@@ -7,6 +7,7 @@ const app = createApp();
 describe("operations routes", () => {
   let slug: string;
   let accessToken: string;
+  let joinCode: string;
   let markId: string;
 
   beforeAll(async () => {
@@ -15,6 +16,7 @@ describe("operations routes", () => {
       .send({ title: "Ops Test", markdown: "# Test\n\nSome content to comment on." });
     slug = res.body.slug;
     accessToken = res.body.accessToken;
+    joinCode = res.body.joinCode;
   });
 
   describe("comment.add", () => {
@@ -22,6 +24,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.add",
           by: "human:alice",
@@ -44,6 +47,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ type: "comment.add", by: "human:alice" })
         .expect(400);
 
@@ -63,6 +67,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.reply",
           markId,
@@ -80,6 +85,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.reply",
           markId: "non-existent-id",
@@ -97,6 +103,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "suggestion.add",
           by: "human:bob",
@@ -118,6 +125,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.resolve",
           markId,
@@ -133,6 +141,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.marks[markId].resolved).toBe(true);
@@ -144,6 +153,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "document.approve",
           by: "human:henri",
@@ -158,6 +168,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.status).toBe("approved");
@@ -173,6 +184,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${createRes.body.slug}/ops`)
         .set("x-share-token", createRes.body.accessToken)
+        .set("x-join-code", createRes.body.joinCode)
         .send({
           type: "document.request_changes",
           by: "human:henri",
@@ -192,17 +204,20 @@ describe("operations routes", () => {
         .send({ title: "Rev Test", markdown: "# Rev" });
 
       const token = createRes.body.accessToken;
+
+      const code = createRes.body.joinCode;
       const s = createRes.body.slug;
 
-      const state1 = await request(app).get(`/documents/${s}/state`).set("x-share-token", token);
+      const state1 = await request(app).get(`/documents/${s}/state`).set("x-share-token", token).set("x-join-code", code);
       expect(state1.body.revision).toBe(1);
 
       await request(app)
         .post(`/documents/${s}/ops`)
         .set("x-share-token", token)
+        .set("x-join-code", code)
         .send({ type: "comment.add", by: "human:x", quote: "Rev", text: "hi" });
 
-      const state2 = await request(app).get(`/documents/${s}/state`).set("x-share-token", token);
+      const state2 = await request(app).get(`/documents/${s}/state`).set("x-share-token", token).set("x-join-code", code);
       expect(state2.body.revision).toBe(1);
     });
   });
@@ -212,6 +227,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ type: "unknown.operation" })
         .expect(400);
 
@@ -222,6 +238,7 @@ describe("operations routes", () => {
   describe("comment.reply — edge cases", () => {
     let replyDocSlug: string;
     let replyDocToken: string;
+    let replyDocCode: string;
     let replyMarkId: string;
 
     beforeAll(async () => {
@@ -230,10 +247,12 @@ describe("operations routes", () => {
         .send({ title: "Reply Edge Cases", markdown: "# Reply Test\n\nContent here." });
       replyDocSlug = doc.body.slug;
       replyDocToken = doc.body.accessToken;
+      replyDocCode = doc.body.joinCode;
 
       const comment = await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({
           type: "comment.add",
           by: "human:alice",
@@ -247,18 +266,21 @@ describe("operations routes", () => {
       await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({ type: "comment.reply", markId: replyMarkId, by: "human:bob", text: "Reply 1" })
         .expect(200);
 
       await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({ type: "comment.reply", markId: replyMarkId, by: "ai:agent", text: "Reply 2" })
         .expect(200);
 
       const state = await request(app)
         .get(`/documents/${replyDocSlug}/state`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .expect(200);
 
       const mark = state.body.marks[replyMarkId];
@@ -273,6 +295,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({ type: "comment.reply", by: "human:bob", text: "Missing markId" })
         .expect(400);
 
@@ -283,6 +306,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({ type: "comment.reply", markId: replyMarkId, text: "Missing by" })
         .expect(400);
 
@@ -293,6 +317,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({ type: "comment.reply", markId: replyMarkId, by: "human:bob" })
         .expect(400);
 
@@ -303,6 +328,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${replyDocSlug}/ops`)
         .set("x-share-token", replyDocToken)
+        .set("x-join-code", replyDocCode)
         .send({
           type: "comment.reply",
           markId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
@@ -318,6 +344,7 @@ describe("operations routes", () => {
   describe("comment.resolve — edge cases", () => {
     let resolveDocSlug: string;
     let resolveDocToken: string;
+    let resolveDocCode: string;
     let resolveMarkId: string;
 
     beforeAll(async () => {
@@ -326,10 +353,12 @@ describe("operations routes", () => {
         .send({ title: "Resolve Edge Cases", markdown: "# Resolve\n\nResolve content." });
       resolveDocSlug = doc.body.slug;
       resolveDocToken = doc.body.accessToken;
+      resolveDocCode = doc.body.joinCode;
 
       const comment = await request(app)
         .post(`/documents/${resolveDocSlug}/ops`)
         .set("x-share-token", resolveDocToken)
+        .set("x-join-code", resolveDocCode)
         .send({
           type: "comment.add",
           by: "human:alice",
@@ -343,6 +372,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${resolveDocSlug}/ops`)
         .set("x-share-token", resolveDocToken)
+        .set("x-join-code", resolveDocCode)
         .send({ type: "comment.resolve", markId: resolveMarkId, by: "human:alice" })
         .expect(200);
 
@@ -351,7 +381,8 @@ describe("operations routes", () => {
 
       const state = await request(app)
         .get(`/documents/${resolveDocSlug}/state`)
-        .set("x-share-token", resolveDocToken);
+        .set("x-share-token", resolveDocToken)
+        .set("x-join-code", resolveDocCode);
 
       expect(state.body.marks[resolveMarkId].resolved).toBe(true);
     });
@@ -360,6 +391,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${resolveDocSlug}/ops`)
         .set("x-share-token", resolveDocToken)
+        .set("x-join-code", resolveDocCode)
         .send({ type: "comment.resolve", by: "human:alice" })
         .expect(400);
 
@@ -370,6 +402,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${resolveDocSlug}/ops`)
         .set("x-share-token", resolveDocToken)
+        .set("x-join-code", resolveDocCode)
         .send({
           type: "comment.resolve",
           markId: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
@@ -390,6 +423,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({ type: "document.approve", by: "human:reviewer" })
         .expect(200);
 
@@ -399,7 +433,8 @@ describe("operations routes", () => {
 
       const state = await request(app)
         .get(`/documents/${doc.body.slug}/state`)
-        .set("x-share-token", doc.body.accessToken);
+        .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode);
 
       expect(state.body.status).toBe("approved");
     });
@@ -412,23 +447,27 @@ describe("operations routes", () => {
       await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({ type: "document.request_changes", by: "human:reviewer" })
         .expect(200);
 
       const state1 = await request(app)
         .get(`/documents/${doc.body.slug}/state`)
-        .set("x-share-token", doc.body.accessToken);
+        .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode);
       expect(state1.body.status).toBe("changes_requested");
 
       await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({ type: "document.approve", by: "human:reviewer" })
         .expect(200);
 
       const state2 = await request(app)
         .get(`/documents/${doc.body.slug}/state`)
-        .set("x-share-token", doc.body.accessToken);
+        .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode);
       expect(state2.body.status).toBe("approved");
     });
   });
@@ -442,6 +481,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({
           type: "document.request_changes",
           by: "human:reviewer",
@@ -454,7 +494,8 @@ describe("operations routes", () => {
 
       const state = await request(app)
         .get(`/documents/${doc.body.slug}/state`)
-        .set("x-share-token", doc.body.accessToken);
+        .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode);
       expect(state.body.status).toBe("changes_requested");
     });
 
@@ -466,6 +507,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${doc.body.slug}/ops`)
         .set("x-share-token", doc.body.accessToken)
+        .set("x-join-code", doc.body.joinCode)
         .send({ type: "document.request_changes", by: "human:reviewer" })
         .expect(200);
 
@@ -478,6 +520,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ by: "human:alice" })
         .expect(400);
 
@@ -490,6 +533,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.add",
           by: "x".repeat(101),
@@ -505,6 +549,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.add",
           by: "human:alice",
@@ -520,6 +565,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.add",
           by: "human:alice",
@@ -535,6 +581,7 @@ describe("operations routes", () => {
   describe("suggestion.accept and suggestion.reject — edge cases", () => {
     let sugDocSlug: string;
     let sugDocToken: string;
+    let sugDocCode: string;
 
     beforeAll(async () => {
       const doc = await request(app)
@@ -542,12 +589,14 @@ describe("operations routes", () => {
         .send({ title: "Suggestion Edge", markdown: "# Suggestion\n\nOriginal text to replace." });
       sugDocSlug = doc.body.slug;
       sugDocToken = doc.body.accessToken;
+      sugDocCode = doc.body.joinCode;
     });
 
     it("accepting a suggestion applies the replacement to markdown", async () => {
       const sug = await request(app)
         .post(`/documents/${sugDocSlug}/ops`)
         .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode)
         .send({
           type: "suggestion.add",
           by: "human:bob",
@@ -560,12 +609,14 @@ describe("operations routes", () => {
       await request(app)
         .post(`/documents/${sugDocSlug}/ops`)
         .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode)
         .send({ type: "suggestion.accept", markId: sug.body.mark.id, by: "human:alice" })
         .expect(200);
 
       const state = await request(app)
         .get(`/documents/${sugDocSlug}/state`)
-        .set("x-share-token", sugDocToken);
+        .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode);
 
       expect(state.body.markdown).toContain("Replaced text");
       expect(state.body.markdown).not.toContain("Original text to replace");
@@ -580,6 +631,7 @@ describe("operations routes", () => {
       const sug = await request(app)
         .post(`/documents/${doc2.body.slug}/ops`)
         .set("x-share-token", doc2.body.accessToken)
+        .set("x-join-code", doc2.body.joinCode)
         .send({
           type: "suggestion.add",
           by: "human:bob",
@@ -592,12 +644,14 @@ describe("operations routes", () => {
       await request(app)
         .post(`/documents/${doc2.body.slug}/ops`)
         .set("x-share-token", doc2.body.accessToken)
+        .set("x-join-code", doc2.body.joinCode)
         .send({ type: "suggestion.reject", markId: sug.body.mark.id, by: "human:alice" })
         .expect(200);
 
       const state = await request(app)
         .get(`/documents/${doc2.body.slug}/state`)
-        .set("x-share-token", doc2.body.accessToken);
+        .set("x-share-token", doc2.body.accessToken)
+        .set("x-join-code", doc2.body.joinCode);
 
       expect(state.body.markdown).toContain("Keep this text");
       expect(state.body.marks[sug.body.mark.id].resolved).toBe(true);
@@ -607,6 +661,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${sugDocSlug}/ops`)
         .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode)
         .send({ type: "suggestion.accept", markId: "nonexistent-id", by: "human:alice" })
         .expect(404);
 
@@ -617,6 +672,7 @@ describe("operations routes", () => {
       const comment = await request(app)
         .post(`/documents/${sugDocSlug}/ops`)
         .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode)
         .send({
           type: "comment.add",
           by: "human:bob",
@@ -628,6 +684,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${sugDocSlug}/ops`)
         .set("x-share-token", sugDocToken)
+        .set("x-join-code", sugDocCode)
         .send({ type: "suggestion.accept", markId: comment.body.mark.id, by: "human:alice" })
         .expect(400);
 
@@ -659,6 +716,7 @@ describe("operations routes", () => {
       const res = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", otherDoc.body.accessToken)
+        .set("x-join-code", otherDoc.body.joinCode)
         .send({ type: "comment.add", by: "human:alice", quote: "x", text: "y" })
         .expect(403);
 

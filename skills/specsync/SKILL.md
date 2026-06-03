@@ -155,14 +155,17 @@ EOF
 ```
 
 After creating:
-1. Parse the response JSON to get `slug`, `accessToken`, and `docUrl`
-2. Tell the user: "Spec published for review at {docUrl} — approve or request changes in the browser."
+1. Parse the response JSON to get `slug`, `accessToken`, `joinCode`, and `docUrl`
+2. Tell the user: "Spec published for review at {docUrl} — join code: {joinCode}. Enter your name and this code in the browser to approve or request changes."
+   The `joinCode` is a 6-character second factor humans must type to open the
+   document. Always surface it alongside the URL, or they cannot join.
 3. IMMEDIATELY run the polling loop below — do NOT wait for the user to confirm:
 
 ```bash
 while true; do
   RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=0" \
-    -H "x-share-token: {accessToken}")
+    -H "x-share-token: {accessToken}" \
+    -H "x-join-code: {joinCode}")
   if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
     echo "$RESP"
     break
@@ -179,6 +182,7 @@ done
 ```bash
 curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
   -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {"markdown": "UPDATED SPEC CONTENT"}
@@ -194,16 +198,42 @@ While waiting for approval, check for new comments and reply:
 ```bash
 # Read current state (see all comments)
 curl -s "$SPECSYNC_URL/documents/{slug}/state" \
-  -H "x-share-token: {accessToken}"
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}"
 
 # Reply to a comment
 curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
 {"type": "comment.reply", "markId": "MARK_ID", "by": "ai:agent", "text": "Your reply"}
 EOF
 ```
+
+## Suggesting edits
+
+When you want to propose concrete replacement text rather than just comment, add a suggestion. The team accepts or rejects it in the browser.
+
+```bash
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
+  -H "Content-Type: application/json" \
+  -d @- << 'EOF'
+{"type": "suggestion.add", "by": "ai:agent", "quote": "EXACT TEXT FROM DOC", "content": "REPLACEMENT TEXT"}
+EOF
+```
+
+`quote` must match text in the current document. Use `content` for the proposed replacement.
+
+## Document auth: token + join code
+
+Every `/documents/{slug}/*` request needs **both** the share token and the join
+code — the token alone returns `403 INVALID_JOIN_CODE`. Send `x-share-token:
+{accessToken}` and `x-join-code: {joinCode}` (or `?token=...&code=...`) on every
+state, events, ops, and revision call. Humans type the join code in the browser;
+agents read it from the create-document response.
 
 ## Rules
 

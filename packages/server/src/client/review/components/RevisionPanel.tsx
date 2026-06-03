@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { authHeaders } from "../../shared/auth.js";
 
 interface Revision {
   revision: number;
@@ -8,12 +9,13 @@ interface Revision {
 interface Props {
   slug: string;
   token: string;
+  code: string;
   currentRevision: number;
   show: boolean;
   onClose: () => void;
 }
 
-export function RevisionPanel({ slug, token, currentRevision, show, onClose }: Props) {
+export function RevisionPanel({ slug, token, code, currentRevision, show, onClose }: Props) {
   const [revisions, setRevisions] = useState<Revision[]>([]);
   const [selectedRev, setSelectedRev] = useState<number | null>(null);
   const [revContent, setRevContent] = useState<string | null>(null);
@@ -22,23 +24,23 @@ export function RevisionPanel({ slug, token, currentRevision, show, onClose }: P
 
   useEffect(() => {
     if (!show) return;
-    fetch(`/documents/${slug}/revisions`, { headers: { "x-share-token": token } })
+    fetch(`/documents/${slug}/revisions`, { headers: authHeaders(token, code) })
       .then((r) => r.json())
       .then((d) => setRevisions(d.revisions || []))
       .catch(() => {});
-  }, [show, slug, token, currentRevision]);
+  }, [show, slug, token, code, currentRevision]);
 
   const viewRevision = async (rev: number) => {
     setSelectedRev(rev);
 
     try {
-      const curr = await fetch(`/documents/${slug}/revisions/${rev}`, { headers: { "x-share-token": token } }).then((r) => r.json());
+      const curr = await fetch(`/documents/${slug}/revisions/${rev}`, { headers: authHeaders(token, code) }).then((r) => r.json());
       setRevContent(curr.markdown);
 
       const revIndex = revisions.findIndex((r) => r.revision === rev);
       if (revIndex > 0) {
         const prevRevNum = revisions[revIndex - 1].revision;
-        const prev = await fetch(`/documents/${slug}/revisions/${prevRevNum}`, { headers: { "x-share-token": token } }).then((r) => r.json());
+        const prev = await fetch(`/documents/${slug}/revisions/${prevRevNum}`, { headers: authHeaders(token, code) }).then((r) => r.json());
         setDiffContent({ prev: prev.markdown, current: curr.markdown });
         setViewMode("diff");
       } else {

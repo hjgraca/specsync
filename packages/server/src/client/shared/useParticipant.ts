@@ -1,43 +1,39 @@
-import { useState, useEffect } from "react";
-
-const ADJECTIVES = [
-  "swift", "bold", "quiet", "bright", "cosmic", "golden", "silver", "crystal",
-  "noble", "vivid", "gentle", "fierce", "clever", "steady", "spiffy", "misty",
-  "frozen", "blazing", "dancing", "silent", "hidden", "mighty", "ancient", "lucky",
-];
-
-const NOUNS = [
-  "waterfall", "falcon", "phoenix", "river", "mountain", "thunder", "forest", "aurora",
-  "comet", "glacier", "canyon", "meadow", "nebula", "harbor", "valley", "summit",
-  "breeze", "storm", "ember", "tide", "reef", "grove", "cliff", "dune",
-];
-
-function generateCodename(): string {
-  const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  return `${adj}-${noun}`;
-}
+import { useState } from "react";
 
 interface Participant {
   id: string;
   name: string;
 }
 
-const STORAGE_KEY_PREFIX = "specsync_participant_";
+const NAME_KEY = "specsync_name";
+const ID_KEY = "specsync_participant_id";
 
-export function useParticipant(sessionId: string) {
-  const [participant] = useState<Participant>(() => {
-    const storageKey = `${STORAGE_KEY_PREFIX}${sessionId}`;
-    const stored = localStorage.getItem(storageKey);
-    if (stored) return JSON.parse(stored);
+function loadStoredName(): string {
+  return localStorage.getItem(NAME_KEY) || "";
+}
 
-    const p: Participant = {
-      id: `viewer-${Math.random().toString(36).slice(2, 10)}`,
-      name: generateCodename(),
-    };
-    localStorage.setItem(storageKey, JSON.stringify(p));
-    return p;
+/**
+ * The participant's display name and a stable per-browser id. The name is chosen
+ * by the person (no auto-generated codenames) and shared across every document,
+ * so returning visitors keep the same name. `setName` persists it.
+ */
+export function useParticipant() {
+  const [id] = useState<string>(() => {
+    const stored = localStorage.getItem(ID_KEY);
+    if (stored) return stored;
+    const fresh = `viewer-${Math.random().toString(36).slice(2, 10)}`;
+    localStorage.setItem(ID_KEY, fresh);
+    return fresh;
   });
 
-  return participant;
+  const [name, setNameState] = useState<string>(loadStoredName);
+
+  const setName = (next: string) => {
+    const trimmed = next.trim();
+    localStorage.setItem(NAME_KEY, trimmed);
+    setNameState(trimmed);
+  };
+
+  const participant: Participant = { id, name };
+  return { participant, setName };
 }

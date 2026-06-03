@@ -26,9 +26,17 @@ This creates a `fly.toml` config file. Edit it to set the internal port and envi
   HOST = "0.0.0.0"
   REVIEW_TOOL_DB_PATH = "/data/specsync.db"
 
-[[services]]
+[http_service]
   internal_port = 4000
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
 ```
+
+`[http_service]` is the modern shape that `fly launch` scaffolds for HTTP apps —
+it gives you HTTPS and scale-to-zero out of the box. (The older `[[services]]`
+block with `internal_port` still works if `fly launch` generated that instead.)
 
 Then deploy:
 
