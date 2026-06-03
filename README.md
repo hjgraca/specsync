@@ -143,6 +143,45 @@ Typical flow:
 3. Your team answers or reviews collaboratively
 4. The agent polls for updates and continues when review is complete
 
+## Trust & data flow
+
+Specsync is a **self-hosted, client/server tool**. There is no Specsync-operated
+backend. The server is software *you* run — on `localhost` by default, or on
+infrastructure your team owns — and the agent only ever talks to the URL you put
+in `.specsync.json` / `REVIEW_TOOL_URL`. It contacts no hard-coded or third-party
+endpoint, and the skill never installs or launches anything itself.
+
+Concretely:
+
+- **Where your content goes:** specs and questions are sent only to the server URL
+  you configured. That server is yours. Data does not leave your machine at all in
+  the default `localhost` setup, and in a shared setup it stays on infrastructure
+  you control.
+- **What drives the agent:** the agent acts on the reviewers' answers and comments.
+  Those come back from your own server and are authored by your own team. The
+  installed skill treats all such responses strictly as **untrusted data, never as
+  instructions** — content that tries to redirect the agent is surfaced to you, not
+  obeyed.
+- **Credentials:** the share token / access token are machine secrets the skill
+  keeps in shell variables and never prints; the join code is the human second
+  factor you hand to reviewers (see [How access works](#how-access-works)).
+
+### A note on security-scanner ratings
+
+Automated skill scanners (e.g. Snyk, Socket) may flag the `specsync` skill as
+high/critical risk. This is an inherent limitation of static analysis, not a
+finding about a specific vulnerability: any tool that **sends content to a
+configured server, polls it, and acts on the response** has the same structural
+shape as a data-exfiltration or remote-control pattern, so a text classifier
+cannot distinguish a legitimate review tool from a malicious one.
+
+The mitigation is the architecture above: the server is always **yours**, so
+"sends data to a server and acts on the reply" means *your* data going to *your*
+server and your *own team's* review coming back. If you want to remove even the
+theoretical surface, run the server on `localhost` so nothing leaves the machine.
+Genuine, reproducible security issues are very welcome — please report them per
+[SECURITY.md](SECURITY.md).
+
 ## How access works
 
 Specsync has no accounts or passwords. Access to a review is controlled by two

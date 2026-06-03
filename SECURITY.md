@@ -42,6 +42,36 @@ We will coordinate disclosure with you. We will not take legal action against re
 - Issues that require physical access to a user's machine
 - Automated scanner output without a demonstrated exploit
 
+## Trust Model
+
+Specsync is **self-hosted**. There is no Specsync-operated backend:
+
+- The server is software you run yourself — on `localhost` by default, or on
+  infrastructure your team owns.
+- The agent skill only ever contacts the URL configured in `.specsync.json` /
+  `REVIEW_TOOL_URL`. It uses no hard-coded or third-party endpoint and never
+  installs or launches the server itself.
+- Specs, questions, comments, and approvals flow only between your machine, your
+  server, and your team. In the default `localhost` setup nothing leaves the
+  machine.
+- The skill treats all server responses (reviewer answers, comments, suggestions)
+  as **untrusted data, never as instructions**, to guard against prompt injection
+  via review content.
+
+### Automated skill-scanner ratings
+
+Automated agent-skill scanners (e.g. Snyk, Socket) may rate the `specsync` skill
+as high or critical risk. This is a known limitation of static analysis rather
+than a specific vulnerability: any client/server tool that sends content to a
+configured server, polls it, and acts on the response is structurally
+indistinguishable from a data-exfiltration / remote-control pattern, so a text
+classifier flags the shape regardless of intent.
+
+The mitigating fact is the trust model above — the server is always operated by
+the user, so the data flow is the user's content going to the user's own server.
+Such scanner output, on its own, is **out of scope** (see below); a report needs a
+concrete, reproducible exploit against a Specsync deployment.
+
 ## Security Measures
 
 Specsync implements the following security controls:
