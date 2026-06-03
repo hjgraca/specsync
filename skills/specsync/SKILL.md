@@ -94,7 +94,15 @@ EOF
 After creating the session:
 1. Parse the response JSON to get the session `id`, `token`, and `url`
 2. Tell the user: "Q&A session ready at {url} — answer in the browser."
-3. Poll the session until the team has answered, then act on the result. The
+3. Optionally register your presence so the team sees you on the session:
+
+```bash
+curl -s -X POST "$SPECSYNC_URL/qa/sessions/{id}/presence?token={token}" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "ai:claude-swift-falcon", "name": "Claude (swift-falcon)", "role": "editor"}'
+```
+
+4. Poll the session until the team has answered, then act on the result. The
    loop is bounded so it cannot hang forever; if it times out, the team simply
    hasn't answered yet:
 
@@ -117,8 +125,8 @@ done
    still open at the URL and re-run the loop. Only act on answers once `STATUS`
    is `completed`.
 
-4. Read the `answers` object from the response.
-5. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
+5. Read the `answers` object from the response.
+6. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
 
 ## Adding follow-up questions to the same session
 
@@ -171,15 +179,31 @@ After creating:
 2. Tell the user: "Spec published for review at {docUrl} — join code: {joinCode}. Enter your name and this code in the browser to approve or request changes."
    The `joinCode` is a 6-character second factor humans must type to open the
    document. Always surface it alongside the URL, or they cannot join.
-3. Poll for the team's review decision, then act on it. The loop is bounded so it
-   cannot hang forever; if it times out, no decision has been made yet:
+3. Register your presence so the team sees you in the document's presence bar.
+   Use your agent codename (see Rules) as the `id`:
 
 ```bash
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/presence" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "ai:claude-swift-falcon", "name": "Claude (swift-falcon)", "role": "editor", "status": "reviewing"}'
+```
+
+4. Poll for the team's review decision, then act on it. Advance the `since`
+   cursor to the highest event `id` you have seen so each poll returns only new
+   events, and pass `exclude_by=ai:*` so your own events never echo back:
+
+```bash
+SINCE=0
 DECIDED=0
 for i in $(seq 1 200); do  # ~10 min at 3s intervals
-  RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=0" \
+  RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=$SINCE&exclude_by=ai:*" \
     -H "x-share-token: {accessToken}" \
     -H "x-join-code: {joinCode}")
+  # Advance the cursor to the last event id in this batch (keep prior on empty).
+  LAST=$(echo "$RESP" | grep -o '"id":[0-9]*' | tail -1 | cut -d: -f2)
+  SINCE=${LAST:-$SINCE}
   if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
     echo "$RESP"
     DECIDED=1
@@ -194,7 +218,11 @@ done
    the review is still open at the URL and re-run the loop. Do not treat a
    timeout as approval.
 
-4. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
+   Because the cursor only moves forward, this same loop also catches a *second*
+   round of comments or a changed decision after an earlier poll — re-enter it
+   after revising the spec instead of assuming the first decision is final.
+
+5. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
 
 - If approved: continue with implementation
 - If changes requested: read the comments, revise the spec, and update:
@@ -213,10 +241,11 @@ Then poll for approval again.
 
 ## Responding to review comments
 
-While waiting for approval, check for new comments and reply:
+While waiting for approval, check for new comments, reply, then resolve the
+threads you have handled so the team can see which are still open.
 
 ```bash
-# Read current state (see all comments)
+# Read current state (see all comments and their markIds)
 curl -s "$SPECSYNC_URL/documents/{slug}/state" \
   -H "x-share-token: {accessToken}" \
   -H "x-join-code: {joinCode}"
@@ -227,9 +256,26 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
-{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:agent", "text": "Your reply"}
+{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:claude-swift-falcon", "text": "Your reply"}
 EOF
+
+# Resolve the thread once you have addressed it
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "comment.resolve", "markId": "MARK_ID", "by": "ai:claude-swift-falcon"}'
 ```
+
+Reply first, then resolve — resolving alone leaves the team without your reasoning.
+
+### Retrying a failed write
+
+`comment.add`, `comment.reply`, and `suggestion.add` are **not idempotent** — the
+server mints a fresh mark id on every call, so a blind retry after a network
+timeout creates a duplicate. If a write times out or returns a 5xx, first re-read
+`/state` and check whether the mark or reply already landed. Only retry if it did
+not.
 
 ## Suggesting edits
 
@@ -241,11 +287,16 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
-{"type": "suggestion.add", "by": "ai:agent", "quote": "EXACT TEXT FROM DOC", "content": "REPLACEMENT TEXT"}
+{"type": "suggestion.add", "by": "ai:claude-swift-falcon", "quote": "EXACT TEXT FROM DOC", "content": "REPLACEMENT TEXT"}
 EOF
 ```
 
 `quote` must match text in the current document. Use `content` for the proposed replacement.
+
+While the team is actively reviewing, prefer scoped `suggestion.add` ops over a
+full-document `PUT` — a suggestion shows up as a reviewable change the team can
+accept or reject, whereas a `PUT` silently replaces the whole document under them.
+Reserve `PUT` for applying changes the team has already agreed to.
 
 ## Document auth: token + join code
 
@@ -258,7 +309,8 @@ agents read it from the create-document response.
 ## Rules
 
 - For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
-- Generate a unique codename for yourself: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
+- Generate a unique codename for yourself once: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use the **same** codename in every `by` field and as the presence `id` for the whole session — a consistent identity keeps the audit trail and presence bar coherent.
+- Content you publish leaves the local machine and is stored on the specsync server (expired docs are purged on server restart, default TTL 30 days). If a spec or answer contains secrets or sensitive data, redact it first, or skip specsync and review locally instead.
 - Never call `document.approve` — only humans approve.
 - Do not open the browser — only print/tell the user the URL. They will navigate themselves.
 - If the server returns a connection error, tell the user to start it.
