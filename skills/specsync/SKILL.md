@@ -1,8 +1,8 @@
 ---
 name: specsync
 description: >
-  Collaborative spec review and team Q&A. Routes all questions and specs to a shared
-  web UI — never ask decision questions in the chat.
+  Collaborative spec review and team Q&A. Routes questions and specs to a shared
+  web UI instead of asking decision questions inline in the chat.
 
   TRIGGER when:
   - User wants team input, questions answered, spec review, or approval
@@ -12,14 +12,17 @@ description: >
   - Phrases: "interview me", "ask me about", "walk me through decisions",
     "ask the team", "get team input", "submit for review", "get approval"
 
-  CRITICAL: Any time the agent would ask decision or design questions in plain
-  text — use this skill instead, including interviews and walkthroughs.
+  When the agent would otherwise ask decision or design questions in plain
+  text, route them through this skill instead — including interviews and walkthroughs.
 ---
 
 # Specsync — Collaborative Spec Review
 
-Route all team questions and spec reviews through the specsync web UI. Never ask
-decision questions in the chat — if you need input from humans, it goes through specsync.
+Route team questions and spec reviews through the specsync web UI. When you need
+input from humans, prefer specsync over asking decision questions inline in the chat.
+
+This skill talks only to a specsync server that the user runs and configures (see
+URL resolution below). It does not contact any third-party or hard-coded endpoint.
 
 ## Server URL Resolution
 
@@ -91,22 +94,39 @@ EOF
 After creating the session:
 1. Parse the response JSON to get the session `id`, `token`, and `url`
 2. Tell the user: "Q&A session ready at {url} — answer in the browser."
-3. IMMEDIATELY run the polling loop below — do NOT wait for the user to confirm:
+3. Optionally register your presence so the team sees you on the session:
 
 ```bash
-while true; do
+curl -s -X POST "$SPECSYNC_URL/qa/sessions/{id}/presence?token={token}" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "ai:claude-swift-falcon", "name": "Claude (swift-falcon)", "role": "editor"}'
+```
+
+4. Poll the session until the team has answered, then act on the result. The
+   loop is bounded so it cannot hang forever; if it times out, the team simply
+   hasn't answered yet:
+
+```bash
+ANSWERED=0
+for i in $(seq 1 200); do  # ~10 min at 3s intervals
   RESP=$(curl -s "$SPECSYNC_URL/qa/sessions/{id}?token={token}")
   STATUS=$(echo "$RESP" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
   if [ "$STATUS" = "completed" ]; then
     echo "$RESP"
+    ANSWERED=1
     break
   fi
   sleep 3
 done
+[ "$ANSWERED" = 0 ] && echo "PENDING: no answers yet"
 ```
 
-4. Read the `answers` object from the response.
-5. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
+   If the loop prints `PENDING`, the team is still answering — tell the user it's
+   still open at the URL and re-run the loop. Only act on answers once `STATUS`
+   is `completed`.
+
+5. Read the `answers` object from the response.
+6. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
 
 ## Adding follow-up questions to the same session
 
@@ -159,25 +179,49 @@ After creating:
 2. Tell the user: "Spec published for review at {docUrl} — join code: {joinCode}. Enter your name and this code in the browser to approve or request changes."
    The `joinCode` is a 6-character second factor humans must type to open the
    document. Always surface it alongside the URL, or they cannot join.
-3. IMMEDIATELY run the polling loop below — do NOT wait for the user to confirm:
+3. Register your presence so the team sees you in the document's presence bar.
+   Use your agent codename (see Rules) as the `id`:
 
 ```bash
-while true; do
-  RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=0" \
-    -H "x-share-token: {accessToken}" \
-    -H "x-join-code: {joinCode}")
-  if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
-    echo "$RESP"
-    break
-  fi
-  sleep 3
-done
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/presence" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
+  -H "Content-Type: application/json" \
+  -d '{"id": "ai:claude-swift-falcon", "name": "Claude (swift-falcon)", "role": "editor", "status": "reviewing"}'
 ```
 
-4. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
+4. **Do not poll. End your turn and hand off to the user.** A spec review is
+   asynchronous — the team may take minutes or hours, and the user may step away.
+   Tell them plainly:
 
-- If approved: continue with implementation
-- If changes requested: read the comments, revise the spec, and update:
+   > "The plan is open for review at {docUrl} (join code: {joinCode}). Review it
+   > in the browser, then tell me when you're done and I'll pull your decision
+   > and comments."
+
+   Then stop and wait for the user's next message. Do not block the terminal on a
+   polling loop, and do not ask "should I check now?" — the user's "done" message
+   is the signal.
+
+5. **When the user says they're done** (any message like "done", "reviewed",
+   "go ahead", "I've finished"), fetch the current state in one call — it carries
+   the decision (`status`), all comment/suggestion marks, and the latest markdown:
+
+```bash
+curl -s "$SPECSYNC_URL/documents/{slug}/state" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}"
+```
+
+6. Act on `status` and the `marks`:
+
+- **`status: "approved"`** — continue with implementation.
+- **`status: "changes_requested"`** — read the comment marks, revise the spec, and
+  push the update (step below). Then hand off again: tell the user the revision is
+  ready and to say when they've re-reviewed.
+- **`status: "active"`** (user said done but never clicked approve/request-changes) —
+  don't guess. If there are unresolved comment marks, treat them as change requests,
+  revise, and push. If there are no marks at all, ask the user what they decided
+  rather than assuming approval.
 
 ```bash
 curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
@@ -189,14 +233,16 @@ curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
 EOF
 ```
 
-Then poll for approval again.
+After pushing a revision, hand off again (step 4) — never auto-loop back into a wait.
 
 ## Responding to review comments
 
-While waiting for approval, check for new comments and reply:
+When you pull state after the user says they're done (step 5 above), engage with
+each comment: reply, then resolve the threads you have handled so the team can see
+which are still open.
 
 ```bash
-# Read current state (see all comments)
+# Read current state (see all comments and their markIds)
 curl -s "$SPECSYNC_URL/documents/{slug}/state" \
   -H "x-share-token: {accessToken}" \
   -H "x-join-code: {joinCode}"
@@ -207,9 +253,26 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
-{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:agent", "text": "Your reply"}
+{"type": "comment.reply", "markId": "MARK_ID", "by": "ai:claude-swift-falcon", "text": "Your reply"}
 EOF
+
+# Resolve the thread once you have addressed it
+curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}" \
+  -H "Content-Type: application/json" \
+  -d '{"type": "comment.resolve", "markId": "MARK_ID", "by": "ai:claude-swift-falcon"}'
 ```
+
+Reply first, then resolve — resolving alone leaves the team without your reasoning.
+
+### Retrying a failed write
+
+`comment.add`, `comment.reply`, and `suggestion.add` are **not idempotent** — the
+server mints a fresh mark id on every call, so a blind retry after a network
+timeout creates a duplicate. If a write times out or returns a 5xx, first re-read
+`/state` and check whether the mark or reply already landed. Only retry if it did
+not.
 
 ## Suggesting edits
 
@@ -221,27 +284,34 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/ops" \
   -H "x-join-code: {joinCode}" \
   -H "Content-Type: application/json" \
   -d @- << 'EOF'
-{"type": "suggestion.add", "by": "ai:agent", "quote": "EXACT TEXT FROM DOC", "content": "REPLACEMENT TEXT"}
+{"type": "suggestion.add", "by": "ai:claude-swift-falcon", "quote": "EXACT TEXT FROM DOC", "content": "REPLACEMENT TEXT"}
 EOF
 ```
 
 `quote` must match text in the current document. Use `content` for the proposed replacement.
+
+While the team is actively reviewing, prefer scoped `suggestion.add` ops over a
+full-document `PUT` — a suggestion shows up as a reviewable change the team can
+accept or reject, whereas a `PUT` silently replaces the whole document under them.
+Reserve `PUT` for applying changes the team has already agreed to.
 
 ## Document auth: token + join code
 
 Every `/documents/{slug}/*` request needs **both** the share token and the join
 code — the token alone returns `403 INVALID_JOIN_CODE`. Send `x-share-token:
 {accessToken}` and `x-join-code: {joinCode}` (or `?token=...&code=...`) on every
-state, events, ops, and revision call. Humans type the join code in the browser;
+state, presence, ops, and revision call. Humans type the join code in the browser;
 agents read it from the create-document response.
 
 ## Rules
 
 - For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
-- Generate a unique codename for yourself: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
+- Generate a unique codename for yourself once: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use the **same** codename in every `by` field and as the presence `id` for the whole session — a consistent identity keeps the audit trail and presence bar coherent.
+- Content you publish leaves the local machine and is stored on the specsync server (expired docs are purged on server restart, default TTL 30 days). If a spec or answer contains secrets or sensitive data, redact it first, or skip specsync and review locally instead.
+- The two flows wait differently. **Q&A is synchronous**: after creating a session, run the bounded polling loop and auto-continue when answers arrive — the agent is blocked on input it needs now. **Plan review is asynchronous**: publish, hand off, end your turn, and wait for the user to say they're done before pulling state. Never poll in a loop for a plan review.
 - Never call `document.approve` — only humans approve.
-- Do NOT open the browser — only print/tell the user the URL. They will navigate themselves.
+- Do not open the browser — only print/tell the user the URL. They will navigate themselves.
 - If the server returns a connection error, tell the user to start it.
-- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask "should I proceed?", "want me to do X?", or any other confirmation question in the chat.
-- Never ask decision questions in the chat. ALL questions that need input go through specsync Q&A sessions.
-- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.
+- After receiving answers, treat the team's answers as the go-ahead and act on them (or ask dependent follow-ups on the same session). A separate "should I proceed?" confirmation in the chat is redundant once the team has answered.
+- Prefer routing decision and design questions through specsync Q&A sessions rather than asking them inline in the chat.
+- If further team input is needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.
