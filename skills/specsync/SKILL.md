@@ -190,42 +190,38 @@ curl -s -X POST "$SPECSYNC_URL/documents/{slug}/presence" \
   -d '{"id": "ai:claude-swift-falcon", "name": "Claude (swift-falcon)", "role": "editor", "status": "reviewing"}'
 ```
 
-4. Poll for the team's review decision, then act on it. Advance the `since`
-   cursor to the highest event `id` you have seen so each poll returns only new
-   events, and pass `exclude_by=ai:*` so your own events never echo back:
+4. **Do not poll. End your turn and hand off to the user.** A spec review is
+   asynchronous — the team may take minutes or hours, and the user may step away.
+   Tell them plainly:
+
+   > "The plan is open for review at {docUrl} (join code: {joinCode}). Review it
+   > in the browser, then tell me when you're done and I'll pull your decision
+   > and comments."
+
+   Then stop and wait for the user's next message. Do not block the terminal on a
+   polling loop, and do not ask "should I check now?" — the user's "done" message
+   is the signal.
+
+5. **When the user says they're done** (any message like "done", "reviewed",
+   "go ahead", "I've finished"), fetch the current state in one call — it carries
+   the decision (`status`), all comment/suggestion marks, and the latest markdown:
 
 ```bash
-SINCE=0
-DECIDED=0
-for i in $(seq 1 200); do  # ~10 min at 3s intervals
-  RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=$SINCE&exclude_by=ai:*" \
-    -H "x-share-token: {accessToken}" \
-    -H "x-join-code: {joinCode}")
-  # Advance the cursor to the last event id in this batch (keep prior on empty).
-  LAST=$(echo "$RESP" | grep -o '"id":[0-9]*' | tail -1 | cut -d: -f2)
-  SINCE=${LAST:-$SINCE}
-  if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
-    echo "$RESP"
-    DECIDED=1
-    break
-  fi
-  sleep 3
-done
-[ "$DECIDED" = 0 ] && echo "PENDING: no decision yet"
+curl -s "$SPECSYNC_URL/documents/{slug}/state" \
+  -H "x-share-token: {accessToken}" \
+  -H "x-join-code: {joinCode}"
 ```
 
-   If the loop prints `PENDING`, no decision has been made yet — tell the user
-   the review is still open at the URL and re-run the loop. Do not treat a
-   timeout as approval.
+6. Act on `status` and the `marks`:
 
-   Because the cursor only moves forward, this same loop also catches a *second*
-   round of comments or a changed decision after an earlier poll — re-enter it
-   after revising the spec instead of assuming the first decision is final.
-
-5. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
-
-- If approved: continue with implementation
-- If changes requested: read the comments, revise the spec, and update:
+- **`status: "approved"`** — continue with implementation.
+- **`status: "changes_requested"`** — read the comment marks, revise the spec, and
+  push the update (step below). Then hand off again: tell the user the revision is
+  ready and to say when they've re-reviewed.
+- **`status: "active"`** (user said done but never clicked approve/request-changes) —
+  don't guess. If there are unresolved comment marks, treat them as change requests,
+  revise, and push. If there are no marks at all, ask the user what they decided
+  rather than assuming approval.
 
 ```bash
 curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
@@ -237,12 +233,13 @@ curl -s -X PUT "$SPECSYNC_URL/documents/{slug}" \
 EOF
 ```
 
-Then poll for approval again.
+After pushing a revision, hand off again (step 4) — never auto-loop back into a wait.
 
 ## Responding to review comments
 
-While waiting for approval, check for new comments, reply, then resolve the
-threads you have handled so the team can see which are still open.
+When you pull state after the user says they're done (step 5 above), engage with
+each comment: reply, then resolve the threads you have handled so the team can see
+which are still open.
 
 ```bash
 # Read current state (see all comments and their markIds)
@@ -303,7 +300,7 @@ Reserve `PUT` for applying changes the team has already agreed to.
 Every `/documents/{slug}/*` request needs **both** the share token and the join
 code — the token alone returns `403 INVALID_JOIN_CODE`. Send `x-share-token:
 {accessToken}` and `x-join-code: {joinCode}` (or `?token=...&code=...`) on every
-state, events, ops, and revision call. Humans type the join code in the browser;
+state, presence, ops, and revision call. Humans type the join code in the browser;
 agents read it from the create-document response.
 
 ## Rules
@@ -311,6 +308,7 @@ agents read it from the create-document response.
 - For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
 - Generate a unique codename for yourself once: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use the **same** codename in every `by` field and as the presence `id` for the whole session — a consistent identity keeps the audit trail and presence bar coherent.
 - Content you publish leaves the local machine and is stored on the specsync server (expired docs are purged on server restart, default TTL 30 days). If a spec or answer contains secrets or sensitive data, redact it first, or skip specsync and review locally instead.
+- The two flows wait differently. **Q&A is synchronous**: after creating a session, run the bounded polling loop and auto-continue when answers arrive — the agent is blocked on input it needs now. **Plan review is asynchronous**: publish, hand off, end your turn, and wait for the user to say they're done before pulling state. Never poll in a loop for a plan review.
 - Never call `document.approve` — only humans approve.
 - Do not open the browser — only print/tell the user the URL. They will navigate themselves.
 - If the server returns a connection error, tell the user to start it.
