@@ -1,8 +1,8 @@
 ---
 name: specsync
 description: >
-  Collaborative spec review and team Q&A. Routes all questions and specs to a shared
-  web UI — never ask decision questions in the chat.
+  Collaborative spec review and team Q&A. Routes questions and specs to a shared
+  web UI instead of asking decision questions inline in the chat.
 
   TRIGGER when:
   - User wants team input, questions answered, spec review, or approval
@@ -12,14 +12,17 @@ description: >
   - Phrases: "interview me", "ask me about", "walk me through decisions",
     "ask the team", "get team input", "submit for review", "get approval"
 
-  CRITICAL: Any time the agent would ask decision or design questions in plain
-  text — use this skill instead, including interviews and walkthroughs.
+  When the agent would otherwise ask decision or design questions in plain
+  text, route them through this skill instead — including interviews and walkthroughs.
 ---
 
 # Specsync — Collaborative Spec Review
 
-Route all team questions and spec reviews through the specsync web UI. Never ask
-decision questions in the chat — if you need input from humans, it goes through specsync.
+Route team questions and spec reviews through the specsync web UI. When you need
+input from humans, prefer specsync over asking decision questions inline in the chat.
+
+This skill talks only to a specsync server that the user runs and configures (see
+URL resolution below). It does not contact any third-party or hard-coded endpoint.
 
 ## Server URL Resolution
 
@@ -91,19 +94,28 @@ EOF
 After creating the session:
 1. Parse the response JSON to get the session `id`, `token`, and `url`
 2. Tell the user: "Q&A session ready at {url} — answer in the browser."
-3. IMMEDIATELY run the polling loop below — do NOT wait for the user to confirm:
+3. Poll the session until the team has answered, then act on the result. The
+   loop is bounded so it cannot hang forever; if it times out, the team simply
+   hasn't answered yet:
 
 ```bash
-while true; do
+ANSWERED=0
+for i in $(seq 1 200); do  # ~10 min at 3s intervals
   RESP=$(curl -s "$SPECSYNC_URL/qa/sessions/{id}?token={token}")
   STATUS=$(echo "$RESP" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
   if [ "$STATUS" = "completed" ]; then
     echo "$RESP"
+    ANSWERED=1
     break
   fi
   sleep 3
 done
+[ "$ANSWERED" = 0 ] && echo "PENDING: no answers yet"
 ```
+
+   If the loop prints `PENDING`, the team is still answering — tell the user it's
+   still open at the URL and re-run the loop. Only act on answers once `STATUS`
+   is `completed`.
 
 4. Read the `answers` object from the response.
 5. If there are dependent follow-up questions to ask based on these answers, add them to the same session (see below). Otherwise, act on the answers immediately.
@@ -159,20 +171,28 @@ After creating:
 2. Tell the user: "Spec published for review at {docUrl} — join code: {joinCode}. Enter your name and this code in the browser to approve or request changes."
    The `joinCode` is a 6-character second factor humans must type to open the
    document. Always surface it alongside the URL, or they cannot join.
-3. IMMEDIATELY run the polling loop below — do NOT wait for the user to confirm:
+3. Poll for the team's review decision, then act on it. The loop is bounded so it
+   cannot hang forever; if it times out, no decision has been made yet:
 
 ```bash
-while true; do
+DECIDED=0
+for i in $(seq 1 200); do  # ~10 min at 3s intervals
   RESP=$(curl -s "$SPECSYNC_URL/documents/{slug}/events/pending?since=0" \
     -H "x-share-token: {accessToken}" \
     -H "x-join-code: {joinCode}")
   if echo "$RESP" | grep -q '"document.approved"\|"document.changes_requested"'; then
     echo "$RESP"
+    DECIDED=1
     break
   fi
   sleep 3
 done
+[ "$DECIDED" = 0 ] && echo "PENDING: no decision yet"
 ```
+
+   If the loop prints `PENDING`, no decision has been made yet — tell the user
+   the review is still open at the URL and re-run the loop. Do not treat a
+   timeout as approval.
 
 4. Look for an event with `type: "document.approved"` or `type: "document.changes_requested"`.
 
@@ -240,8 +260,8 @@ agents read it from the create-document response.
 - For each question, include a `recommendation` field explaining your suggested answer and why. The team benefits from seeing your reasoning — it speeds up their decision-making.
 - Generate a unique codename for yourself: `ai:<agent>-<adjective>-<noun>` (e.g., `ai:claude-swift-falcon`). Use a random pair. Use this in ALL `by` fields.
 - Never call `document.approve` — only humans approve.
-- Do NOT open the browser — only print/tell the user the URL. They will navigate themselves.
+- Do not open the browser — only print/tell the user the URL. They will navigate themselves.
 - If the server returns a connection error, tell the user to start it.
-- After receiving answers, immediately act on them (or ask dependent follow-ups on the same session). The team's answers ARE the go-ahead — do not ask "should I proceed?", "want me to do X?", or any other confirmation question in the chat.
-- Never ask decision questions in the chat. ALL questions that need input go through specsync Q&A sessions.
-- If further team input is genuinely needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.
+- After receiving answers, treat the team's answers as the go-ahead and act on them (or ask dependent follow-ups on the same session). A separate "should I proceed?" confirmation in the chat is redundant once the team has answered.
+- Prefer routing decision and design questions through specsync Q&A sessions rather than asking them inline in the chat.
+- If further team input is needed after receiving answers, add follow-up questions to the existing session rather than asking in the chat.
