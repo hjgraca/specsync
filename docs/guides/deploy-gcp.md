@@ -92,9 +92,23 @@ export REVIEW_TOOL_URL=https://specsync-xxxxx-uc.a.run.app
 
 ## Storage
 
-Cloud Run instances have ephemeral storage. This works well for Specsync — sessions are short-lived and specs auto-purge after 30 days.
+Cloud Run's filesystem is writable but **in-memory and ephemeral**. The image
+already creates `/data`, so `REVIEW_TOOL_DB_PATH=/data/specsync.db` works — but
+be aware of two consequences specific to Cloud Run:
 
-For persistent storage, mount a Cloud Storage FUSE volume or use a Cloud SQL instance.
+- **Scale-to-zero wipes the database.** Because Cloud Run stops idle instances,
+  the SQLite file is lost whenever the service scales down — which it does
+  frequently with light usage. Reviews effectively last only as long as the
+  instance stays warm.
+- **Multiple instances don't share the file.** If Cloud Run autoscales beyond
+  one instance, each gets its own copy, so reviewers can hit different data.
+
+This is fine for short-lived, single-reviewer sessions. If you want reviews to
+survive idleness or run more than one instance, set `--min-instances 1` **and**
+`--max-instances 1` to pin a single warm instance, or move the database to a
+[Cloud Storage FUSE volume mount](https://cloud.google.com/run/docs/configuring/services/cloud-storage-volume-mounts)
+at `/data`. For a more robust option, run on a platform with a real attached
+volume (see the [Fly.io](deploy-flyio.md) or [Railway](deploy-railway.md) guides).
 
 ## Tear down
 

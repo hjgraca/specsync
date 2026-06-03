@@ -62,6 +62,7 @@ az containerapp create \
   --environment specsync-env \
   --image specsyncregistry.azurecr.io/specsync:latest \
   --registry-server specsyncregistry.azurecr.io \
+  --registry-identity system \
   --target-port 4000 \
   --ingress external \
   --cpu 0.25 \
@@ -70,6 +71,12 @@ az containerapp create \
   --max-replicas 1 \
   --env-vars "PORT=4000" "HOST=0.0.0.0" "REVIEW_TOOL_DB_PATH=/data/specsync.db"
 ```
+
+> Pulling from a private ACR needs authentication. `--registry-identity system`
+> uses a system-assigned managed identity (Azure grants it `acrpull`
+> automatically) — the recommended path. Alternatively, enable the ACR admin
+> user and pass `--registry-username` / `--registry-password`. The GHCR image
+> above is public and needs none of this.
 
 ## Get the URL
 
@@ -101,9 +108,15 @@ export REVIEW_TOOL_URL=https://specsync.xxxxx.eastus.azurecontainerapps.io
 
 ## Storage
 
-Container Apps instances have ephemeral storage. This works well for Specsync — sessions are short-lived and specs auto-purge after 30 days.
+Container Apps replica storage is ephemeral. With `--min-replicas 0` (above),
+the app scales to zero when idle and the SQLite database at `/data/specsync.db`
+is lost on the next cold start — fine for short-lived, single-reviewer sessions.
 
-For persistent storage, mount an Azure Files volume.
+To keep reviews across idle periods, either set `--min-replicas 1` to pin a warm
+replica, or mount an
+[Azure Files volume](https://learn.microsoft.com/en-us/azure/container-apps/storage-mounts)
+at `/data`. For a simpler always-warm option with an attached disk, see the
+[Fly.io](deploy-flyio.md) or [Railway](deploy-railway.md) guides.
 
 ## Tear down
 

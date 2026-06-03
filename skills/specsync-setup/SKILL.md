@@ -38,3 +38,9 @@ curl -s --max-time 5 "SERVER_URL_HERE/health"
 - If it fails, tell the user the config was saved but the server is not reachable. They should start it with `npx @specsync/server` or check the URL.
 
 5. **Tell the user they're ready.** They can now say "ask the team" or "submit for review" and the specsync skill will use the configured server.
+
+   Briefly mention what happens next so there are no surprises:
+   - "Ask the team" opens a Q&A form; share the printed URL.
+   - "Submit for review" opens a review document; share the printed URL **and the
+     6-character join code**. Reviewers enter their name and the code once in the
+     browser. Q&A sessions don't need a code.

@@ -8,6 +8,7 @@ describe("presence routes", () => {
   describe("document presence", () => {
     let slug: string;
     let accessToken: string;
+    let joinCode: string;
 
     it("creates a document for presence tests", async () => {
       const res = await request(app)
@@ -17,6 +18,7 @@ describe("presence routes", () => {
 
       slug = res.body.slug;
       accessToken = res.body.accessToken;
+      joinCode = res.body.joinCode;
     });
 
     describe("POST /documents/:slug/presence", () => {
@@ -24,6 +26,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ id: "user-1", name: "Alice", role: "editor" })
           .expect(200);
 
@@ -38,6 +41,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ id: "user-2", name: "Bob" })
           .expect(200);
 
@@ -49,6 +53,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ name: "NoId" })
           .expect(400);
 
@@ -59,6 +64,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ id: "user-3" })
           .expect(400);
 
@@ -84,6 +90,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ id: "user-6", name: "StatusUser", role: "commenter", status: "typing" })
           .expect(200);
 
@@ -96,6 +103,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .get(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .expect(200);
 
         expect(res.body.presence).toBeInstanceOf(Array);
@@ -111,6 +119,7 @@ describe("presence routes", () => {
         const res = await request(app)
           .get(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .expect(200);
 
         const ids = res.body.presence.map((p: any) => p.id);
@@ -135,6 +144,7 @@ describe("presence routes", () => {
         await request(app)
           .get(`/documents/${slug}/presence`)
           .set("x-share-token", other.body.accessToken)
+          .set("x-join-code", other.body.joinCode)
           .expect(404);
       });
     });
@@ -144,12 +154,14 @@ describe("presence routes", () => {
         await request(app)
           .post(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .send({ id: "user-1", name: "Alice Updated", role: "owner" })
           .expect(200);
 
         const res = await request(app)
           .get(`/documents/${slug}/presence`)
           .set("x-share-token", accessToken)
+          .set("x-join-code", joinCode)
           .expect(200);
 
         const alice = res.body.presence.find((p: any) => p.id === "user-1");

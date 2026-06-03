@@ -6,8 +6,10 @@ import { ApprovalBar } from "./components/ApprovalBar.js";
 import { RevisionBanner } from "./components/RevisionBanner.js";
 import { RevisionPanel } from "./components/RevisionPanel.js";
 import { PresenceBar } from "./components/PresenceBar.js";
+import { JoinGate } from "./components/JoinGate.js";
 import { QRButton } from "../shared/QRButton.js";
 import { useParticipant } from "../shared/useParticipant.js";
+import { authHeaders, loadJoinCode, saveJoinCode } from "../shared/auth.js";
 
 export function App() {
   const [doc, setDoc] = useState<DocumentState | null>(null);
@@ -21,19 +23,33 @@ export function App() {
   const pathParts = window.location.pathname.split("/review/");
   const slug = pathParts[1];
   const token = new URLSearchParams(window.location.search).get("token") || "";
-  const participant = useParticipant(slug);
+  const { participant, setName } = useParticipant();
+
+  // The join code is the required second factor. Start from storage; if it's
+  // missing or rejected we fall back to the JoinGate prompt below.
+  const [code, setCode] = useState<string>(() => loadJoinCode(slug));
+  const [joined, setJoined] = useState<boolean>(() => !!participant.name && !!loadJoinCode(slug));
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!slug || !token) {
       setError("Missing document slug or token in URL");
       return;
     }
+    if (!joined) return;
 
     const fetchState = async () => {
       try {
         const res = await fetch(`/documents/${slug}/state`, {
-          headers: { "x-share-token": token },
+          headers: authHeaders(token, code),
         });
+        if (res.status === 403) {
+          // Stored code no longer valid (e.g. a different document) — re-prompt
+          // for the code but keep the name.
+          setJoinError("That join code didn't work. Check the code and try again.");
+          setJoined(false);
+          return;
+        }
         if (!res.ok) {
           setError("Document not found or invalid token");
           return;
@@ -47,17 +63,25 @@ export function App() {
     fetchState();
     const interval = setInterval(fetchState, 5000);
     return () => clearInterval(interval);
-  }, [slug, token]);
+  }, [slug, token, joined, code]);
+
+  const handleJoin = (name: string, enteredCode: string) => {
+    setName(name);
+    saveJoinCode(slug, enteredCode);
+    setCode(enteredCode);
+    setJoinError(null);
+    setJoined(true);
+  };
 
   const refreshState = async () => {
-    const res = await fetch(`/documents/${slug}/state`, { headers: { "x-share-token": token } });
+    const res = await fetch(`/documents/${slug}/state`, { headers: authHeaders(token, code) });
     if (res.ok) setDoc(await res.json());
   };
 
   const handleAddComment = async (ctx: { quote: string; contextBefore: string; contextAfter: string }, text: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "comment.add", by: `human:${participant.name}`, quote: ctx.quote, contextBefore: ctx.contextBefore, contextAfter: ctx.contextAfter, text }),
     });
     await refreshState();
@@ -66,7 +90,7 @@ export function App() {
   const handleAddSuggestion = async (ctx: { quote: string; contextBefore: string; contextAfter: string }, content: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "suggestion.add", by: `human:${participant.name}`, quote: ctx.quote, contextBefore: ctx.contextBefore, contextAfter: ctx.contextAfter, content, kind: "replace" }),
     });
     await refreshState();
@@ -75,7 +99,7 @@ export function App() {
   const handleReply = async (markId: string, text: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "comment.reply", markId, by: `human:${participant.name}`, text }),
     });
     await refreshState();
@@ -84,7 +108,7 @@ export function App() {
   const handleResolve = async (markId: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "comment.resolve", markId, by: `human:${participant.name}` }),
     });
     await refreshState();
@@ -93,7 +117,7 @@ export function App() {
   const handleGlobalComment = async (text: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "comment.add", by: `human:${participant.name}`, quote: "[general]", text }),
     });
     await refreshState();
@@ -102,7 +126,7 @@ export function App() {
   const handleAcceptSuggestion = async (markId: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "suggestion.accept", markId, by: `human:${participant.name}` }),
     });
     await refreshState();
@@ -111,7 +135,7 @@ export function App() {
   const handleRejectSuggestion = async (markId: string) => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "suggestion.reject", markId, by: `human:${participant.name}` }),
     });
     await refreshState();
@@ -120,7 +144,7 @@ export function App() {
   const handleApprove = async () => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "document.approve", by: `human:${participant.name}` }),
     });
     await refreshState();
@@ -129,7 +153,7 @@ export function App() {
   const handleRequestChanges = async () => {
     await fetch(`/documents/${slug}/ops`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ type: "document.request_changes", by: `human:${participant.name}` }),
     });
     await refreshState();
@@ -140,6 +164,17 @@ export function App() {
       <div style={{ padding: "2rem", textAlign: "center" }}>
         <h1 style={{ color: "#e63946" }}>{error}</h1>
       </div>
+    );
+  }
+
+  if (!joined) {
+    return (
+      <JoinGate
+        initialName={participant.name}
+        codeOnly={!!participant.name}
+        error={joinError}
+        onJoin={handleJoin}
+      />
     );
   }
 
@@ -171,11 +206,12 @@ export function App() {
         </div>
       </header>
 
-      <PresenceBar slug={slug} token={token} participantId={participant.id} participantName={participant.name} />
+      <PresenceBar slug={slug} token={token} code={code} participantId={participant.id} participantName={participant.name} />
       <RevisionBanner revision={doc.revision} onViewChanges={() => setShowRevisionPanel(true)} />
       <RevisionPanel
         slug={slug}
         token={token}
+        code={code}
         currentRevision={doc.revision}
         show={showRevisionPanel}
         onClose={() => setShowRevisionPanel(false)}

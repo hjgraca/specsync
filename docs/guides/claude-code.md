@@ -35,14 +35,14 @@ Tell Claude:
 
 Claude will:
 1. Publish the spec/plan to specsync
-2. Print the review URL for your team
+2. Print the review URL **and a join code** for your team
 3. Poll for approval or change requests
 4. If approved: continue with implementation
 5. If changes requested: read comments, revise, resubmit
 
 ## What it looks like
 
-**In the terminal:**
+**In the terminal (Q&A):**
 ```
 I've created a Q&A session for the team. Answer at:
 http://localhost:4000/qa/abc123?token=xyz
@@ -50,7 +50,18 @@ http://localhost:4000/qa/abc123?token=xyz
 Waiting for answers...
 ```
 
-**In the browser:** Your team sees the questions rendered as interactive forms with the agent's recommendations highlighted.
+**In the terminal (review):**
+```
+Spec published for review at:
+http://localhost:4000/review/d4972aac?token=lZWeGcG-...
+Join code: a1b2c3
+
+Share the link and the code with your reviewers. Waiting for approval...
+```
+
+**In the browser:** Your team opens the link and is prompted once for their
+name and the join code (`a1b2c3` above). After that they see the questions or
+spec rendered for review, with the agent's recommendations highlighted.
 
 ## Configuration
 
@@ -68,8 +79,11 @@ The skill uses Claude's `Bash` tool to:
 - `curl` the specsync API to create sessions and submit documents
 - Run a `while` loop to poll for completion (zero token cost during wait)
 - Parse JSON responses with `grep`
+- Send the share token and join code on every document request (the skill handles this for you)
 
-The agent generates a random codename (e.g., `ai:claude-swift-falcon`) for presence and comments.
+The agent generates a random codename (e.g., `ai:claude-swift-falcon`) for its
+own presence and comments. Human reviewers, by contrast, type their own name
+when they join — there is no auto-generated name for people.
 
 ## Troubleshooting
 
@@ -79,3 +93,4 @@ The agent generates a random codename (e.g., `ai:claude-swift-falcon`) for prese
 | Skill not triggering | Say "ask the team" or "submit for review" explicitly |
 | Agent not polling | Check the skill is in `.claude/skills/specsync/SKILL.md` |
 | Wrong server URL | Set `REVIEW_TOOL_URL` environment variable |
+| Reviewer stuck on the join screen | Give them the 6-character join code the agent printed, not just the URL |

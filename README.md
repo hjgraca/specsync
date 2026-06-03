@@ -18,6 +18,11 @@ Specsync gives AI coding agents a shared workspace for human input and review.
 - **Review specs collaboratively** — Agents publish plans or specs for review. Your team comments inline, suggests changes, and approves or requests revisions.
 - **Support any agent** — Works with Claude Code, Cursor, OpenCode, Copilot, Kiro, Pi, or any agent with shell access. No plugin required — just HTTP and `curl`.
 
+When a reviewer opens a document, Specsync asks for their **name** and a short
+**join code** (a 6-character code the agent prints alongside the link). Both are
+remembered in the browser, so it is a one-time step per person. See
+[How access works](#how-access-works) for the full model.
+
 ## Why Specsync?
 
 AI agents are good at generating plans and code, but team collaboration usually still happens in chat threads, terminal copy-paste, or one-on-one conversations.
@@ -34,29 +39,17 @@ Specsync moves that workflow into a shared browser interface so decisions, feedb
 
 ## Quick Start
 
-Install the agent skills:
+You need two things: a **server** (where reviews live) and the **agent skills**
+(so your agent knows how to use it). Here is the fastest path from zero to a
+working review.
 
-```bash
-npx skills add hjgraca/specsync
-```
+### 1. Start a server
 
-Then run:
-
-```text
-/specsync-setup
-```
-
-Enter the URL of any Specsync server — cloud, shared, or local.
-
-After that, tell your agent:
-
-- **"ask the team"**
-- **"submit for review"**
-
-Run a server locally:
+Run one locally to try it out:
 
 ```bash
 npx @specsync/server
+# → Specsync running at http://localhost:4000
 ```
 
 Or with Docker:
@@ -65,7 +58,40 @@ Or with Docker:
 docker run -p 4000:4000 ghcr.io/hjgraca/specsync
 ```
 
-For shared team use, see [Deploy to the Cloud](#deploy-to-the-cloud).
+For a team, deploy once to a shared URL so everyone connects to the same place —
+see [Deploy to the cloud](#deploy-to-the-cloud).
+
+### 2. Install the agent skills
+
+```bash
+npx skills add hjgraca/specsync
+```
+
+This installs two skills into your agent: `specsync` (the workflow) and
+`specsync-setup` (one-time configuration).
+
+### 3. Point your agent at the server
+
+In your agent, run:
+
+```text
+/specsync-setup
+```
+
+Enter your server URL (`http://localhost:4000` for local, or your team's shared
+URL). This writes `.specsync.json` to your project root so every teammate's
+agent uses the same server. Commit that file.
+
+### 4. Use it
+
+Just talk to your agent in plain language:
+
+- **"ask the team which database we should use"** → opens a Q&A form
+- **"submit this plan for review"** → opens a review document
+
+Your agent prints a URL and a join code. Share both with your reviewers; they
+open the link, enter their name and the code once, and start answering or
+commenting. The agent waits and continues automatically when the team responds.
 
 ## Screenshots
 
@@ -99,8 +125,8 @@ sequenceDiagram
     Server-->>Agent: { status: "completed" }
 
     Agent->>Server: POST /documents
-    Server-->>Agent: { docUrl, slug, token }
-    Server->>Team: renders review UI
+    Server-->>Agent: { docUrl, slug, token, joinCode }
+    Server->>Team: renders review UI (name + join code)
     loop polls every 3s
         Agent->>Server: GET /events/pending
     end
@@ -113,9 +139,41 @@ sequenceDiagram
 Typical flow:
 
 1. The agent creates a Q&A session or publishes a spec
-2. Specsync renders it in the browser with a shareable URL
+2. Specsync renders it in the browser with a shareable URL (and a join code for reviews)
 3. Your team answers or reviews collaboratively
 4. The agent polls for updates and continues when review is complete
+
+## How access works
+
+Specsync has no accounts or passwords. Access to a review is controlled by two
+short-lived secrets that the agent receives when it creates the document:
+
+| Secret | Who uses it | Where it lives |
+|--------|-------------|----------------|
+| **Share token** | Agents (and the browser URL) | In the `?token=` of the review URL and the `x-share-token` header |
+| **Join code** | Humans, typed in the browser | A 6-character code (e.g. `a1b2c3`) the agent prints next to the URL |
+
+**Why two?** A URL is easy to leak — it lands in chat logs, screen shares, and
+browser history. On its own the share token would be enough to read and comment
+on a document. The join code is a second factor that is shared out-of-band (you
+tell your teammates the code), so a stray URL alone is not enough to get in.
+
+**What reviewers experience:**
+
+1. They open the review URL.
+2. Specsync prompts for their **name** and the **join code**.
+3. Both are saved in their browser, so returning to the same document — or
+   opening a new one with the same code — never re-prompts for the name.
+4. If a saved code is rejected (for example, it belongs to a different
+   document), Specsync asks for the code again but keeps the name filled in.
+
+**What agents do:** every request to a document endpoint sends both the share
+token and the join code (`x-share-token` + `x-join-code`, or `?token=&code=`).
+The installed skill and the SDK handle this automatically; for raw HTTP, see the
+[API reference](docs/api-reference.md#document-authentication).
+
+> **Note:** Q&A sessions use the share token only — they are lighter-weight and
+> do not require a join code. The join code applies to review **documents**.
 
 ## Example: What your agent does
 
@@ -195,7 +253,7 @@ For team use, deploy Specsync to a shared URL so all agents and reviewers connec
 
 | Cloud | Service | Guide |
 |-------|---------|-------|
-| AWS | App Runner (CDK) | [docs/guides/deploy-aws.md](docs/guides/deploy-aws.md) |
+| AWS | Lightsail Container Service (CDK) | [docs/guides/deploy-aws.md](docs/guides/deploy-aws.md) |
 | GCP | Cloud Run | [docs/guides/deploy-gcp.md](docs/guides/deploy-gcp.md) |
 | Azure | Container Apps | [docs/guides/deploy-azure.md](docs/guides/deploy-azure.md) |
 | Railway | Railway | [docs/guides/deploy-railway.md](docs/guides/deploy-railway.md) |
@@ -228,9 +286,9 @@ sequenceDiagram
     participant Reviewer as Reviewer agent(s)
 
     Author->>Server: POST /documents
-    Server-->>Author: { docUrl, bridgeUrl }
+    Server-->>Author: { docUrl, bridgeUrl, token, joinCode }
 
-    Author->>Reviewer: "Review this: {bridgeUrl}"
+    Author->>Reviewer: "Review this: {bridgeUrl}" (+ token + joinCode)
     Reviewer->>Server: GET /state
     Server-->>Reviewer: { markdown, marks }
     Reviewer->>Server: POST /ops (comment)
@@ -242,24 +300,28 @@ sequenceDiagram
 
 How to use it:
 
-1. Your authoring agent submits a spec and receives the `bridgeUrl`
-2. Pass the `bridgeUrl` to another agent, such as a security reviewer, performance reviewer, CI bot, or domain expert agent
+1. Your authoring agent submits a spec and receives the `bridgeUrl`, `accessToken`, and `joinCode`
+2. Pass all three to another agent — a security reviewer, performance reviewer, CI bot, or domain expert agent
 3. That reviewer agent reads the spec and posts comments through the Bridge API
 
-Example:
+Like any reviewer, an agent must send both the share token and the join code on
+every request:
 
 ```bash
 # Reviewer reads the spec
-curl -s "$BRIDGE_URL/state" -H "x-share-token: $TOKEN"
+curl -s "$BRIDGE_URL/state" \
+  -H "x-share-token: $TOKEN" \
+  -H "x-join-code: $JOIN_CODE"
 
 # Reviewer posts a comment
 curl -s -X POST "$BRIDGE_URL/ops" \
   -H "x-share-token: $TOKEN" \
+  -H "x-join-code: $JOIN_CODE" \
   -H "Content-Type: application/json" \
   -d '{"type":"comment.add","by":"ai:security-reviewer","quote":"the relevant text","text":"Consider rate limiting here"}'
 ```
 
-This makes it easy to run specialized AI reviewers in parallel while keeping all feedback in the same review thread.
+This makes it easy to run specialized AI reviewers in parallel while keeping all feedback in the same review thread. The `@specsync/sdk` package wraps this loop — see [Packages](#packages).
 
 ## API Reference
 
@@ -267,16 +329,20 @@ See [docs/api-reference.md](docs/api-reference.md) for the full HTTP API.
 
 ### Quick overview
 
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| POST | `/qa/sessions` | Create a Q&A session |
-| GET | `/qa/sessions/:id?token=` | Get session status and answers |
-| POST | `/qa/sessions/:id/answer?token=` | Submit an answer |
-| POST | `/documents` | Create a review document |
-| GET | `/documents/:slug/state` | Get document and comments |
-| PUT | `/documents/:slug` | Update document content |
-| POST | `/documents/:slug/ops` | Add a comment, reply, or approval |
-| GET | `/documents/:slug/events/pending?since=` | Poll for review decisions |
+Q&A endpoints authenticate with the session token (`?token=`). Document
+endpoints require **both** the share token and the join code (`x-share-token` +
+`x-join-code`, or `?token=&code=`).
+
+| Method | Endpoint | Auth | Purpose |
+|--------|----------|------|---------|
+| POST | `/qa/sessions` | none | Create a Q&A session |
+| GET | `/qa/sessions/:id?token=` | token | Get session status and answers |
+| POST | `/qa/sessions/:id/answer?token=` | token | Submit an answer |
+| POST | `/documents` | none | Create a review document |
+| GET | `/documents/:slug/state` | token + code | Get document and comments |
+| PUT | `/documents/:slug` | token + code | Update document content |
+| POST | `/documents/:slug/ops` | token + code | Add a comment, reply, or approval |
+| GET | `/documents/:slug/events/pending?since=` | token + code | Poll for review decisions |
 
 ## Configuration
 
@@ -306,7 +372,9 @@ Resolution order:
 |----------------------|---------|-------------|
 | `PORT` | `4000` | Server port |
 | `HOST` | `0.0.0.0` | Bind address |
-| `REVIEW_TOOL_DB_PATH` | `./specsync.db` | SQLite database path |
+| `REVIEW_TOOL_DB_PATH` | `./specsync.db` | SQLite database path. Point this at a persistent volume in production. |
+| `CORS_ORIGIN` | _(none)_ | Comma-separated list of allowed origins, or `*`. Leave unset for same-origin only. |
+| `SPECSYNC_MAX_BODY_SIZE` | `5mb` | Maximum request body size (caps how large a spec can be). |
 
 ## Packages
 
@@ -321,7 +389,7 @@ Resolution order:
 - **Deploy anywhere** — Run in the cloud, on a shared machine, or locally.
 - **Shared team review** — Keep questions, comments, and approvals in one place.
 - **Multi-agent review** — Add specialized reviewer agents alongside human reviewers.
-- **No login required** — Share a URL and start collaborating immediately.
+- **No accounts to manage** — Reviewers join with a name and a 6-character code — no signup, no passwords. See [How access works](#how-access-works).
 - **Real-time presence** — See who is viewing a Q&A or review session.
 - **QR codes** — Open sessions quickly on mobile devices.
 - **Approval workflow** — Keep specs in review until explicitly approved or rejected.

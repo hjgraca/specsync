@@ -4,6 +4,8 @@ import type { ApprovalResult, DocumentEvent, Mark } from "./types.js";
 export interface BridgeOptions {
   slug: string;
   accessToken: string;
+  /** The document's join code (second factor). Required for documents created with one. */
+  joinCode?: string;
   baseUrl?: string;
   pollIntervalMs?: number;
   timeoutMs?: number;
@@ -15,6 +17,7 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
   const {
     slug,
     accessToken,
+    joinCode,
     baseUrl,
     pollIntervalMs = parseInt(process.env.REVIEW_TOOL_POLL_INTERVAL || "5000", 10),
     timeoutMs = 48 * 60 * 60 * 1000,
@@ -32,13 +35,13 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
       throw new Error(`Review timed out after ${timeoutMs}ms`);
     }
 
-    const events = await client.pollEvents(slug, accessToken, lastEventId, "ai:*");
+    const events = await client.pollEvents(slug, accessToken, lastEventId, "ai:*", joinCode);
 
     for (const event of events) {
       lastEventId = event.id;
 
       if (event.type === "document.approved") {
-        const state = await client.getDocumentState(slug, accessToken);
+        const state = await client.getDocumentState(slug, accessToken, joinCode);
         const unresolvedComments = collectUnresolvedHumanComments(state.marks);
         return {
           status: "approved",
@@ -49,7 +52,7 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
       }
 
       if (event.type === "document.changes_requested") {
-        const state = await client.getDocumentState(slug, accessToken);
+        const state = await client.getDocumentState(slug, accessToken, joinCode);
         const allComments = collectAllHumanComments(state.marks);
         return {
           status: "changes_requested",
@@ -67,7 +70,7 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
               markId: data.markId,
               by: "ai:agent",
               text: reply,
-            });
+            }, joinCode);
             repliedMarks.add(data.markId);
           }
         }
@@ -76,7 +79,7 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
       if (event.type === "comment.replied" && onComment) {
         const data = event.data as { markId: string; by: string; text: string };
         if (data.by.startsWith("human:") && !repliedMarks.has(`${data.markId}-reply-${event.id}`)) {
-          const state = await client.getDocumentState(slug, accessToken);
+          const state = await client.getDocumentState(slug, accessToken, joinCode);
           const mark = state.marks[data.markId];
           if (mark) {
             const reply = await onComment({
@@ -91,7 +94,7 @@ export async function participateInReview(options: BridgeOptions): Promise<Appro
                 markId: data.markId,
                 by: "ai:agent",
                 text: reply,
-              });
+              }, joinCode);
               repliedMarks.add(`${data.markId}-reply-${event.id}`);
             }
           }

@@ -30,6 +30,23 @@ export function extractToken(req: Request): string | null {
   return null;
 }
 
+export function extractJoinCode(req: Request): string | null {
+  const header = req.headers["x-join-code"] as string | undefined;
+  if (header) return header;
+
+  const queryCode = req.query.code as string | undefined;
+  if (queryCode) return queryCode;
+
+  return null;
+}
+
+/** Constant-time comparison that tolerates differing lengths without throwing. */
+function safeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
+
 export function requireAuth(
   req: AuthenticatedRequest,
   res: Response,
@@ -43,12 +60,28 @@ export function requireAuth(
 
   const db = getDb();
   const row = db
-    .prepare("SELECT slug, role FROM document_tokens WHERE token = ?")
-    .get(token) as { slug: string; role: AccessRole } | undefined;
+    .prepare(
+      `SELECT t.slug AS slug, t.role AS role, d.join_code AS joinCode
+       FROM document_tokens t
+       JOIN documents d ON d.slug = t.slug
+       WHERE t.token = ?`,
+    )
+    .get(token) as { slug: string; role: AccessRole; joinCode: string } | undefined;
 
   if (!row) {
     res.status(404).json({ error: "Not found", code: "NOT_FOUND" });
     return;
+  }
+
+  // A valid token is necessary but not sufficient: the document's join code is a
+  // required second factor. Docs created before join codes existed have an empty
+  // code and stay open so the token alone keeps working.
+  if (row.joinCode) {
+    const code = extractJoinCode(req);
+    if (!code || !safeEqual(code, row.joinCode)) {
+      res.status(403).json({ error: "Invalid or missing join code", code: "INVALID_JOIN_CODE" });
+      return;
+    }
   }
 
   req.auth = { slug: row.slug, role: row.role, token };

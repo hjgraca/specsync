@@ -112,6 +112,7 @@ export interface CreateDocumentResponse {
   bridgeUrl: string;
   accessToken: string;
   ownerSecret: string;
+  joinCode: string;
 }
 
 export interface DocumentState {

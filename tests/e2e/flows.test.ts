@@ -36,6 +36,11 @@ test.describe("Q&A golden path", () => {
     // Navigate to the session page
     await page.goto(`/qa/${session.id}?token=${session.token}`);
 
+    // Enter a display name (Q&A no longer auto-generates codenames)
+    await expect(page.getByText("What's your name?")).toBeVisible();
+    await page.getByPlaceholder("e.g. Alex Rivera").fill("Test Reviewer");
+    await page.getByRole("button", { name: "Continue" }).click();
+
     // Verify title renders
     await expect(page.locator("h1")).toContainText("E2E Test Q&A");
 
@@ -74,10 +79,17 @@ test.describe("Review golden path", () => {
     const doc = await res.json();
     expect(doc.slug).toBeDefined();
     expect(doc.accessToken).toBeDefined();
+    expect(doc.joinCode).toBeDefined();
     expect(doc.docUrl).toBeDefined();
 
     // Navigate to the document review page
     await page.goto(`/review/${doc.slug}?token=${doc.accessToken}`);
+
+    // Pass through the join gate: enter a name and the join code
+    await expect(page.getByText("Join this review")).toBeVisible();
+    await page.getByPlaceholder("e.g. Alex Rivera").fill("Test Reviewer");
+    await page.getByPlaceholder("6-character code").fill(doc.joinCode);
+    await page.getByRole("button", { name: "Join" }).click();
 
     // Verify the document title shows in the header
     await expect(page.locator("header h1")).toContainText("E2E Review Doc");
@@ -97,7 +109,7 @@ test.describe("Review golden path", () => {
 });
 
 test.describe("Presence", () => {
-  test("shows codename in presence bar", async ({ page }) => {
+  test("shows the entered name in the presence bar", async ({ page }) => {
     // Create a Q&A session
     const res = await fetch(`${BASE}/qa/sessions`, {
       method: "POST",
@@ -117,12 +129,14 @@ test.describe("Presence", () => {
 
     const session = await res.json();
 
-    // Navigate to the session
+    // Navigate to the session and enter a name
     await page.goto(`/qa/${session.id}?token=${session.token}`);
+    await page.getByPlaceholder("e.g. Alex Rivera").fill("Robin Stone");
+    await page.getByRole("button", { name: "Continue" }).click();
 
-    // Wait for the presence bar to appear and verify codename pattern (word-word (you))
+    // The presence bar shows the chosen name, marked as the current viewer
     await expect(
-      page.getByText(/\w+-\w+ \(you\)/)
+      page.getByText("Robin Stone (you)")
     ).toBeVisible({ timeout: 10_000 });
   });
 });

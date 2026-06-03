@@ -27,6 +27,7 @@ function initSchema(db: Database.Database): void {
       revision INTEGER NOT NULL DEFAULT 1,
       status TEXT NOT NULL DEFAULT 'active',
       owner_secret TEXT NOT NULL,
+      join_code TEXT NOT NULL DEFAULT '',
       callback_url TEXT,
       callback_session_id TEXT,
       callback_id TEXT,
@@ -97,6 +98,16 @@ function initSchema(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_qa_sessions_expires ON qa_sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_revisions_slug ON document_revisions(slug, revision);
   `);
+
+  migrate(db);
+}
+
+/** Apply additive schema changes that CREATE TABLE IF NOT EXISTS can't make to existing tables. */
+function migrate(db: Database.Database): void {
+  const columns = db.prepare("PRAGMA table_info(documents)").all() as Array<{ name: string }>;
+  if (!columns.some((c) => c.name === "join_code")) {
+    db.prepare("ALTER TABLE documents ADD COLUMN join_code TEXT NOT NULL DEFAULT ''").run();
+  }
 }
 
 export function generateSlug(): string {
@@ -105,6 +116,11 @@ export function generateSlug(): string {
 
 export function generateToken(): string {
   return randomBytes(32).toString("base64url");
+}
+
+/** A short 6-hex-char code a human types to join a document (second factor). */
+export function generateJoinCode(): string {
+  return randomBytes(3).toString("hex");
 }
 
 export function purgeExpired(): number {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { authHeaders } from "../../shared/auth.js";
 
 interface PresenceEntry {
   id: string;
@@ -10,24 +11,29 @@ interface PresenceEntry {
 interface Props {
   slug: string;
   token: string;
+  code: string;
   participantId: string;
   participantName: string;
 }
 
-export function PresenceBar({ slug, token, participantId, participantName }: Props) {
+export function PresenceBar({ slug, token, code, participantId, participantName }: Props) {
   const [presence, setPresence] = useState<PresenceEntry[]>([]);
   const [copied, setCopied] = useState(false);
 
+  // Announce our presence whenever identity changes.
   useEffect(() => {
     fetch(`/documents/${slug}/presence`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-share-token": token },
+      headers: authHeaders(token, code, { "Content-Type": "application/json" }),
       body: JSON.stringify({ id: participantId, name: participantName, role: "viewer" }),
     }).catch(() => {});
+  }, [slug, token, code, participantId, participantName]);
 
+  // Poll the roster on a stable interval; not affected by our own name changes.
+  useEffect(() => {
     const fetchPresence = () => {
       fetch(`/documents/${slug}/presence`, {
-        headers: { "x-share-token": token },
+        headers: authHeaders(token, code),
       })
         .then((r) => r.ok ? r.json() : null)
         .then((d) => { if (d) setPresence(d.presence || []); })
@@ -37,57 +43,53 @@ export function PresenceBar({ slug, token, participantId, participantName }: Pro
     fetchPresence();
     const interval = setInterval(fetchPresence, 5000);
     return () => clearInterval(interval);
-  }, [slug, token, participantId, participantName]);
+  }, [slug, token, code]);
 
   const copyBridgeUrl = () => {
-    const baseUrl = window.location.origin;
+    const base = `${window.location.origin}/documents/${slug}`;
     const snippet = [
       `# Specsync Agent Bridge`,
       ``,
       `Connect your agent to review and comment on this document.`,
       ``,
-      `## Connection Details`,
+      `## Connection`,
       ``,
-      `- Server: ${baseUrl}`,
-      `- Document: ${slug}`,
-      `- Token: ${token}`,
-      ``,
-      `## How to Participate`,
-      ``,
-      `1. Read the current document state:`,
-      `   GET ${baseUrl}/documents/${slug}/state`,
-      `   Header: x-share-token: ${token}`,
-      ``,
-      `2. Poll for new comments/events:`,
-      `   GET ${baseUrl}/documents/${slug}/events/pending?since=0&exclude_by=ai:*`,
-      `   Header: x-share-token: ${token}`,
-      ``,
-      `3. Reply to a comment:`,
-      `   POST ${baseUrl}/documents/${slug}/ops`,
-      `   Header: x-share-token: ${token}`,
-      `   Body: {"type":"comment.reply","markId":"<id>","by":"ai:<your-agent-name>","text":"<reply>"}`,
-      ``,
-      `4. Add a new comment:`,
-      `   POST ${baseUrl}/documents/${slug}/ops`,
-      `   Header: x-share-token: ${token}`,
-      `   Body: {"type":"comment.add","by":"ai:<your-agent-name>","quote":"<text from doc>","text":"<comment>"}`,
-      ``,
-      `5. Signal your presence:`,
-      `   POST ${baseUrl}/documents/${slug}/presence`,
-      `   Header: x-share-token: ${token}`,
-      `   Body: {"id":"ai:<your-agent-name>","name":"<Display Name>","role":"commenter"}`,
+      `- Base URL: ${base}`,
+      `- Auth: every request below requires two headers —`,
+      `    x-share-token: ${token}`,
+      `    x-join-code: ${code}`,
       ``,
       `## Identity`,
       ``,
-      `Generate a unique codename for yourself using the format: ai:<agent-type>-<adjective>-<noun>`,
-      `Example: ai:kiro-swift-falcon, ai:copilot-bold-river, ai:claude-quiet-meadow`,
-      `Use a random adjective-noun pair so multiple agents of the same type don't conflict.`,
-      `Use this codename in ALL "by" fields and presence signals.`,
+      `Pick a unique codename: ai:<agent>-<adjective>-<noun> (e.g. ai:claude-quiet-meadow).`,
+      `Use a random adjective-noun pair so agents don't collide, and reuse it in every`,
+      `"by" field and presence signal.`,
       ``,
-      `## Notes`,
+      `## Steps`,
       ``,
-      `- Poll events every 5 seconds to stay responsive`,
-      `- Never call document.approve — only humans approve`,
+      `1. Announce your presence:`,
+      `   POST ${base}/presence`,
+      `   {"id":"ai:<you>","name":"<Display Name>","role":"commenter"}`,
+      ``,
+      `2. Read the current document:`,
+      `   GET ${base}/state`,
+      ``,
+      `3. Poll for new activity every 5s (advance since to the last id you saw):`,
+      `   GET ${base}/events/pending?since=0&exclude_by=ai:*`,
+      ``,
+      `4. Reply to a comment:`,
+      `   POST ${base}/ops`,
+      `   {"type":"comment.reply","markId":"<id>","by":"ai:<you>","text":"<reply>"}`,
+      ``,
+      `5. Add a new comment:`,
+      `   POST ${base}/ops`,
+      `   {"type":"comment.add","by":"ai:<you>","quote":"<text from doc>","text":"<comment>"}`,
+      ``,
+      `6. Suggest an edit (propose replacement text):`,
+      `   POST ${base}/ops`,
+      `   {"type":"suggestion.add","by":"ai:<you>","quote":"<text from doc>","content":"<replacement>"}`,
+      ``,
+      `Never approve — only humans approve.`,
     ].join("\n");
     navigator.clipboard.writeText(snippet).then(() => {
       setCopied(true);
@@ -112,27 +114,30 @@ export function PresenceBar({ slug, token, participantId, participantName }: Pro
           <span style={{ color: "#999" }}>No one else viewing</span>
         )}
         {[...presence]
-          .sort((a, b) => a.id === participantId ? -1 : b.id === participantId ? 1 : 0)
-          .map((p) => (
-          <span
-            key={p.id}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.3rem",
-              padding: "2px 8px",
-              borderRadius: "12px",
-              background: p.id.startsWith("ai:") ? "#f3e8ff" : "#e0f2fe",
-              color: p.id.startsWith("ai:") ? "#7c3aed" : "#0369a1",
-              fontSize: "0.75rem",
-              fontWeight: 500,
-            }}
-          >
-            {p.id.startsWith("ai:") && "🤖 "}
-            {p.name}{p.id === participantId && " (you)"}
-            {p.status && <span style={{ opacity: 0.7 }}> · {p.status}</span>}
-          </span>
-        ))}
+          .sort((a, b) => Number(b.id === participantId) - Number(a.id === participantId))
+          .map((p) => {
+            const isAgent = p.id.startsWith("ai:");
+            return (
+            <span
+              key={p.id}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.3rem",
+                padding: "2px 8px",
+                borderRadius: "12px",
+                background: isAgent ? "#f3e8ff" : "#e0f2fe",
+                color: isAgent ? "#7c3aed" : "#0369a1",
+                fontSize: "0.75rem",
+                fontWeight: 500,
+              }}
+            >
+              {isAgent && "🤖 "}
+              {p.name}{p.id === participantId && " (you)"}
+              {p.status && <span style={{ opacity: 0.7 }}> · {p.status}</span>}
+            </span>
+          );
+        })}
       </div>
 
       <button

@@ -23,8 +23,12 @@ Railway detects the Dockerfile, builds it, and deploys. The first deploy creates
 
 ## Set environment variables
 
+The CLI sets one variable per `set`:
+
 ```bash
-railway variables set PORT=4000 HOST=0.0.0.0 REVIEW_TOOL_DB_PATH=/data/specsync.db
+railway variable set PORT=4000
+railway variable set HOST=0.0.0.0
+railway variable set REVIEW_TOOL_DB_PATH=/data/specsync.db
 ```
 
 ## Get the URL
@@ -57,10 +61,11 @@ export REVIEW_TOOL_URL=https://specsync-production-xxxxx.up.railway.app
 
 Railway provides ephemeral storage by default. This works well for Specsync — sessions are short-lived and specs auto-purge after 30 days.
 
-For persistent storage, attach a Railway volume:
+For persistent storage, attach a Railway volume mounted at `/data` (where the
+container writes its SQLite database):
 
 ```bash
-railway volume create --mount /data
+railway volume add --mount-path /data
 ```
 
 ## Tear down

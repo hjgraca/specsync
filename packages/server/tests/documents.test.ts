@@ -7,6 +7,7 @@ const app = createApp();
 describe("document routes", () => {
   let slug: string;
   let accessToken: string;
+  let joinCode: string;
   let ownerSecret: string;
 
   describe("POST /documents", () => {
@@ -19,11 +20,13 @@ describe("document routes", () => {
       expect(res.body.slug).toHaveLength(16);
       expect(res.body.accessToken).toBeDefined();
       expect(res.body.ownerSecret).toBeDefined();
+      expect(res.body.joinCode).toMatch(/^[0-9a-f]{6}$/);
       expect(res.body.docUrl).toContain(`/review/${res.body.slug}`);
       expect(res.body.bridgeUrl).toContain(`/documents/${res.body.slug}`);
 
       slug = res.body.slug;
       accessToken = res.body.accessToken;
+      joinCode = res.body.joinCode;
       ownerSecret = res.body.ownerSecret;
     });
 
@@ -42,6 +45,7 @@ describe("document routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.slug).toBe(slug);
@@ -71,7 +75,7 @@ describe("document routes", () => {
 
     it("accepts token via query param", async () => {
       const res = await request(app)
-        .get(`/documents/${slug}/state?token=${accessToken}`)
+        .get(`/documents/${slug}/state?token=${accessToken}&code=${joinCode}`)
         .expect(200);
 
       expect(res.body.slug).toBe(slug);
@@ -81,6 +85,7 @@ describe("document routes", () => {
       const res = await request(app)
         .get(`/documents/${slug}/state`)
         .set("Authorization", `Bearer ${accessToken}`)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(res.body.slug).toBe(slug);
@@ -92,6 +97,7 @@ describe("document routes", () => {
       const res = await request(app)
         .put(`/documents/${slug}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ markdown: "# Updated\n\nNew content" })
         .expect(200);
 
@@ -102,6 +108,7 @@ describe("document routes", () => {
       const state = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(state.body.markdown).toBe("# Updated\n\nNew content");
@@ -113,6 +120,7 @@ describe("document routes", () => {
       const commentRes = await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({
           type: "comment.add",
           by: "human:tester",
@@ -127,6 +135,7 @@ describe("document routes", () => {
       await request(app)
         .put(`/documents/${slug}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ markdown: "# Updated Again\n\nNew content revised" })
         .expect(200);
 
@@ -134,6 +143,7 @@ describe("document routes", () => {
       const state = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(state.body.marks[markId]).toBeDefined();
@@ -145,12 +155,14 @@ describe("document routes", () => {
       await request(app)
         .put(`/documents/${slug}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ markdown: "# With Title\n\nContent", title: "New Title" })
         .expect(200);
 
       const state = await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       expect(state.body.title).toBe("New Title");
@@ -161,24 +173,28 @@ describe("document routes", () => {
       await request(app)
         .post(`/documents/${slug}/ops`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ type: "document.approve", by: "human:reviewer" })
         .expect(200);
 
       const approved = await request(app)
         .get(`/documents/${slug}/state`)
-        .set("x-share-token", accessToken);
+        .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode);
       expect(approved.body.status).toBe("approved");
 
       // Update should reset status to active
       await request(app)
         .put(`/documents/${slug}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ markdown: "# Reset status\n\nContent" })
         .expect(200);
 
       const state = await request(app)
         .get(`/documents/${slug}/state`)
-        .set("x-share-token", accessToken);
+        .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode);
       expect(state.body.status).toBe("active");
     });
 
@@ -201,6 +217,7 @@ describe("document routes", () => {
       const res = await request(app)
         .put(`/documents/${slug}`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .send({ title: "Only Title" })
         .expect(400);
 
@@ -211,6 +228,7 @@ describe("document routes", () => {
       const revisions = await request(app)
         .get(`/documents/${slug}/revisions`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(200);
 
       // At this point we have created the doc (rev 1) and done multiple updates
@@ -243,6 +261,7 @@ describe("document routes", () => {
       const state = await request(app)
         .get(`/documents/${res.body.slug}/state`)
         .set("x-share-token", res.body.accessToken)
+        .set("x-join-code", res.body.joinCode)
         .expect(200);
 
       expect(state.body.slug).toBe(res.body.slug);
@@ -287,6 +306,7 @@ describe("document routes", () => {
       const state = await request(app)
         .get(`/documents/${res.body.slug}/state`)
         .set("x-share-token", res.body.accessToken)
+        .set("x-join-code", res.body.joinCode)
         .expect(200);
 
       expect(state.body.title).toBe("Untitled Review");
@@ -302,6 +322,7 @@ describe("document routes", () => {
       const state = await request(app)
         .get(`/documents/${res.body.slug}/state`)
         .set("x-share-token", res.body.accessToken)
+        .set("x-join-code", res.body.joinCode)
         .expect(200);
 
       expect(state.body.markdown).toBe(longMarkdown);
@@ -314,6 +335,7 @@ describe("document routes", () => {
       const res = await request(app)
         .get("/documents/0000000000000000/state")
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(403);
 
       expect(res.body.code).toBe("SLUG_MISMATCH");
@@ -351,6 +373,7 @@ describe("document routes", () => {
       await request(app)
         .get(`/documents/${slug}/state`)
         .set("x-share-token", accessToken)
+        .set("x-join-code", joinCode)
         .expect(404);
     });
   });
